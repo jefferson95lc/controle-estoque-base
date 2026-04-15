@@ -105,6 +105,7 @@ const ChartTooltipContent = React.forwardRef<
       active,
       payload,
       className,
+      // @ts-ignore recharts typing issue
       indicator = "dot",
       hideLabel = false,
       hideIndicator = false,
