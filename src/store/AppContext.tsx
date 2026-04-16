@@ -7,8 +7,8 @@ interface AppState {
   addProduct: (p: Omit<Product, 'id'>) => void;
   updateProduct: (p: Product) => void;
   deleteProduct: (id: string) => void;
-  addStockIn: (productId: string, quantity: number, reason: string) => void;
-  addStockOut: (productId: string, quantity: number, reason: string) => boolean;
+  addStockIn: (productId: string, quantity: number, reason: string, date?: string) => void;
+  addStockOut: (productId: string, quantity: number, reason: string, date?: string) => boolean;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -37,7 +37,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 
 
-  const addStockIn = (productId: string, quantity: number, reason: string) => {
+  const addStockIn = (productId: string, quantity: number, reason: string, date?: string) => {
     setProducts(prev => prev.map(p =>
       p.id === productId ? { ...p, quantity: p.quantity + quantity } : p
     ));
@@ -47,11 +47,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       type: 'entrada',
       quantity,
       reason,
-      date: new Date().toISOString(),
+      date: date || new Date().toISOString(),
     }]);
   };
 
-  const addStockOut = (productId: string, quantity: number, reason: string): boolean => {
+  const addStockOut = (productId: string, quantity: number, reason: string, date?: string): boolean => {
     const product = products.find(p => p.id === productId);
     if (!product || product.quantity < quantity) return false;
     setProducts(prev => prev.map(p =>
@@ -63,7 +63,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       type: 'saida',
       quantity,
       reason,
-      date: new Date().toISOString(),
+      date: date || new Date().toISOString(),
     }]);
     return true;
   };
