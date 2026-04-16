@@ -8,13 +8,6 @@ export interface Product {
   minStock: number;
 }
 
-export interface Supplier {
-  id: string;
-  name: string;
-  document: string;
-  contact: string;
-  email: string;
-}
 
 export interface StockMovement {
   id: string;
