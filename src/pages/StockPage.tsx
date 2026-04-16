@@ -9,9 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Minus, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 const OUT_REASONS = ['Venda', 'Perda', 'Uso interno', 'Devolução', 'Outro'];
 const IN_REASONS = ['Compra', 'Devolução de cliente', 'Ajuste de inventário', 'Outro'];
+
+const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 
 export default function StockPage() {
   const { products, addStockIn, addStockOut } = useApp();
@@ -22,10 +25,11 @@ export default function StockPage() {
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [reason, setReason] = useState('');
+  const [movDate, setMovDate] = useState(todayStr());
 
   const lowStock = products.filter(p => p.quantity <= p.minStock);
 
-  const resetForm = () => { setProductId(''); setQuantity(1); setReason(''); };
+  const resetForm = () => { setProductId(''); setQuantity(1); setReason(''); setMovDate(todayStr()); };
 
   const handleOut = () => {
     if (!productId || !reason || quantity <= 0) return;
