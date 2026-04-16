@@ -16,22 +16,6 @@ export interface Supplier {
   email: string;
 }
 
-export interface PurchaseItem {
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-}
-
-export type PurchaseStatus = 'Pendente' | 'Aprovado' | 'Recebido';
-
-export interface Purchase {
-  id: string;
-  supplierId: string;
-  date: string;
-  status: PurchaseStatus;
-  items: PurchaseItem[];
-}
-
 export interface StockMovement {
   id: string;
   productId: string;
@@ -39,5 +23,4 @@ export interface StockMovement {
   quantity: number;
   reason: string;
   date: string;
-  purchaseId?: string;
 }

@@ -7,20 +7,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Minus, AlertTriangle } from 'lucide-react';
+import { Plus, Minus, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const REASONS = ['Venda', 'Perda', 'Uso interno', 'Devolução', 'Outro'];
+const OUT_REASONS = ['Venda', 'Perda', 'Uso interno', 'Devolução', 'Outro'];
+const IN_REASONS = ['Compra', 'Devolução de cliente', 'Ajuste de inventário', 'Outro'];
 
 export default function StockPage() {
-  const { products, addStockOut } = useApp();
+  const { products, addStockIn, addStockOut } = useApp();
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+
+  const [outOpen, setOutOpen] = useState(false);
+  const [inOpen, setInOpen] = useState(false);
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [reason, setReason] = useState('');
 
   const lowStock = products.filter(p => p.quantity <= p.minStock);
+
+  const resetForm = () => { setProductId(''); setQuantity(1); setReason(''); };
 
   const handleOut = () => {
     if (!productId || !reason || quantity <= 0) return;
@@ -30,42 +35,77 @@ export default function StockPage() {
       return;
     }
     toast({ title: 'Sucesso', description: 'Saída registrada com sucesso.' });
-    setOpen(false);
-    setProductId('');
-    setQuantity(1);
-    setReason('');
+    setOutOpen(false);
+    resetForm();
+  };
+
+  const handleIn = () => {
+    if (!productId || !reason || quantity <= 0) return;
+    addStockIn(productId, quantity, reason);
+    toast({ title: 'Sucesso', description: 'Entrada registrada com sucesso.' });
+    setInOpen(false);
+    resetForm();
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Estoque</h1>
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setProductId(''); setQuantity(1); setReason(''); } }}>
-          <DialogTrigger asChild>
-            <Button variant="outline"><Minus size={16} className="mr-2" />Saída Manual</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle className="font-heading">Registrar Saída</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Produto</Label>
-                <Select value={productId} onValueChange={setProductId}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name} ({p.quantity} {p.unit})</SelectItem>)}</SelectContent>
-                </Select>
+        <div className="flex gap-2">
+          <Dialog open={inOpen} onOpenChange={(v) => { setInOpen(v); if (!v) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button><Plus size={16} className="mr-2" />Entrada Manual</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle className="font-heading">Registrar Entrada</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Produto</Label>
+                  <Select value={productId} onValueChange={setProductId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name} ({p.quantity} {p.unit})</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Quantidade</Label><Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} /></div>
+                <div>
+                  <Label>Motivo</Label>
+                  <Select value={reason} onValueChange={setReason}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{IN_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <Button className="w-full" onClick={handleIn}>Registrar Entrada</Button>
               </div>
-              <div><Label>Quantidade</Label><Input type="number" value={quantity} onChange={e => setQuantity(Number(e.target.value))} /></div>
-              <div>
-                <Label>Motivo</Label>
-                <Select value={reason} onValueChange={setReason}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>{REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
-                </Select>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={outOpen} onOpenChange={(v) => { setOutOpen(v); if (!v) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button variant="outline"><Minus size={16} className="mr-2" />Saída Manual</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle className="font-heading">Registrar Saída</DialogTitle></DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Produto</Label>
+                  <Select value={productId} onValueChange={setProductId}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name} ({p.quantity} {p.unit})</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Quantidade</Label><Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} /></div>
+                <div>
+                  <Label>Motivo</Label>
+                  <Select value={reason} onValueChange={setReason}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>{OUT_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <Button className="w-full" onClick={handleOut}>Registrar Saída</Button>
               </div>
-              <Button className="w-full" onClick={handleOut}>Registrar Saída</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {lowStock.length > 0 && (

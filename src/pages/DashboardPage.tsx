@@ -1,23 +1,26 @@
 import { useApp } from '@/store/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, AlertTriangle, ShoppingCart, TrendingUp } from 'lucide-react';
+import { Package, AlertTriangle, TrendingUp, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 
 export default function DashboardPage() {
-  const { products, purchases, movements } = useApp();
+  const { products, movements } = useApp();
 
   const lowStock = products.filter(p => p.quantity <= p.minStock);
-  const recentPurchases = [...purchases].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
-  const totalMovements = movements.length;
+  const recentMovements = [...movements].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+  const totalEntradas = movements.filter(m => m.type === 'entrada').length;
+  const totalSaidas = movements.filter(m => m.type === 'saida').length;
 
   const stats = [
     { label: 'Total de Produtos', value: products.length, icon: Package, color: 'text-primary' },
     { label: 'Estoque Baixo', value: lowStock.length, icon: AlertTriangle, color: 'text-warning' },
-    { label: 'Compras', value: purchases.length, icon: ShoppingCart, color: 'text-success' },
-    { label: 'Movimentações', value: totalMovements, icon: TrendingUp, color: 'text-muted-foreground' },
+    { label: 'Entradas', value: totalEntradas, icon: ArrowUpCircle, color: 'text-success' },
+    { label: 'Saídas', value: totalSaidas, icon: ArrowDownCircle, color: 'text-muted-foreground' },
   ];
+
+  const getProductName = (id: string) => products.find(p => p.id === id)?.name || '—';
 
   return (
     <div className="space-y-6">
@@ -59,18 +62,18 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="font-heading text-lg">Últimas Compras</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="font-heading text-lg">Últimas Movimentações</CardTitle></CardHeader>
           <CardContent>
-            {recentPurchases.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma compra registrada.</p>
+            {recentMovements.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma movimentação registrada.</p>
             ) : (
               <div className="space-y-2">
-                {recentPurchases.map(p => (
-                  <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-secondary">
-                    <span className="text-sm">#{p.id.slice(0, 8)}</span>
-                    <span className="text-xs text-muted-foreground">{format(new Date(p.date), 'dd/MM/yyyy', { locale: ptBR })}</span>
-                    <Badge variant={p.status === 'Recebido' ? 'default' : p.status === 'Aprovado' ? 'secondary' : 'outline'}>
-                      {p.status}
+                {recentMovements.map(m => (
+                  <div key={m.id} className="flex items-center justify-between p-2 rounded-md bg-secondary">
+                    <span className="text-sm font-medium">{getProductName(m.productId)}</span>
+                    <span className="text-xs text-muted-foreground">{format(new Date(m.date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</span>
+                    <Badge variant={m.type === 'entrada' ? 'default' : 'destructive'}>
+                      {m.type === 'entrada' ? '↑ Entrada' : '↓ Saída'}
                     </Badge>
                   </div>
                 ))}
