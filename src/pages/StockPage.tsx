@@ -9,9 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Minus, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 const OUT_REASONS = ['Venda', 'Perda', 'Uso interno', 'Devolução', 'Outro'];
 const IN_REASONS = ['Compra', 'Devolução de cliente', 'Ajuste de inventário', 'Outro'];
+
+const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 
 export default function StockPage() {
   const { products, addStockIn, addStockOut } = useApp();
@@ -22,14 +25,16 @@ export default function StockPage() {
   const [productId, setProductId] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [reason, setReason] = useState('');
+  const [movDate, setMovDate] = useState(todayStr());
 
   const lowStock = products.filter(p => p.quantity <= p.minStock);
 
-  const resetForm = () => { setProductId(''); setQuantity(1); setReason(''); };
+  const resetForm = () => { setProductId(''); setQuantity(1); setReason(''); setMovDate(todayStr()); };
 
   const handleOut = () => {
     if (!productId || !reason || quantity <= 0) return;
-    const ok = addStockOut(productId, quantity, reason);
+    const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
+    const ok = addStockOut(productId, quantity, reason, dateISO);
     if (!ok) {
       toast({ title: 'Erro', description: 'Estoque insuficiente para essa saída.', variant: 'destructive' });
       return;
@@ -41,7 +46,8 @@ export default function StockPage() {
 
   const handleIn = () => {
     if (!productId || !reason || quantity <= 0) return;
-    addStockIn(productId, quantity, reason);
+    const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
+    addStockIn(productId, quantity, reason, dateISO);
     toast({ title: 'Sucesso', description: 'Entrada registrada com sucesso.' });
     setInOpen(false);
     resetForm();
@@ -67,6 +73,7 @@ export default function StockPage() {
                   </Select>
                 </div>
                 <div><Label>Quantidade</Label><Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} /></div>
+                <div><Label>Data</Label><Input type="date" value={movDate} onChange={e => setMovDate(e.target.value)} /></div>
                 <div>
                   <Label>Motivo</Label>
                   <Select value={reason} onValueChange={setReason}>
@@ -94,6 +101,7 @@ export default function StockPage() {
                   </Select>
                 </div>
                 <div><Label>Quantidade</Label><Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} /></div>
+                <div><Label>Data</Label><Input type="date" value={movDate} onChange={e => setMovDate(e.target.value)} /></div>
                 <div>
                   <Label>Motivo</Label>
                   <Select value={reason} onValueChange={setReason}>
