@@ -33,7 +33,8 @@ export default function StockPage() {
 
   const handleOut = () => {
     if (!productId || !reason || quantity <= 0) return;
-    const ok = addStockOut(productId, quantity, reason);
+    const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
+    const ok = addStockOut(productId, quantity, reason, dateISO);
     if (!ok) {
       toast({ title: 'Erro', description: 'Estoque insuficiente para essa saída.', variant: 'destructive' });
       return;
@@ -45,7 +46,8 @@ export default function StockPage() {
 
   const handleIn = () => {
     if (!productId || !reason || quantity <= 0) return;
-    addStockIn(productId, quantity, reason);
+    const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
+    addStockIn(productId, quantity, reason, dateISO);
     toast({ title: 'Sucesso', description: 'Entrada registrada com sucesso.' });
     setInOpen(false);
     resetForm();
