@@ -1,12 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Package, Users, ShoppingCart, Warehouse, BarChart3, LayoutDashboard } from 'lucide-react';
+import { Package, Users, FileSpreadsheet, Warehouse, BarChart3, LayoutDashboard } from 'lucide-react';
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/produtos', icon: Package, label: 'Produtos' },
   { to: '/fornecedores', icon: Users, label: 'Fornecedores' },
-  { to: '/compras', icon: ShoppingCart, label: 'Compras' },
   { to: '/estoque', icon: Warehouse, label: 'Estoque' },
+  { to: '/ordem-compras', icon: FileSpreadsheet, label: 'Ordem de Compras' },
   { to: '/relatorios', icon: BarChart3, label: 'Relatórios' },
 ];
 
