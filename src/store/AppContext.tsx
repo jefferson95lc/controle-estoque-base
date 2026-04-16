@@ -35,9 +35,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateProduct = (p: Product) => setProducts(prev => prev.map(x => x.id === p.id ? p : x));
   const deleteProduct = (id: string) => setProducts(prev => prev.filter(x => x.id !== id));
 
-  const addSupplier = (s: Omit<Supplier, 'id'>) => setSuppliers(prev => [...prev, { ...s, id: uid() }]);
-  const updateSupplier = (s: Supplier) => setSuppliers(prev => prev.map(x => x.id === s.id ? s : x));
-  const deleteSupplier = (id: string) => setSuppliers(prev => prev.filter(x => x.id !== id));
+
 
   const addStockIn = (productId: string, quantity: number, reason: string) => {
     setProducts(prev => prev.map(p =>
