@@ -73,6 +73,7 @@ export default function StockPage() {
                   </Select>
                 </div>
                 <div><Label>Quantidade</Label><Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} /></div>
+                <div><Label>Data</Label><Input type="date" value={movDate} onChange={e => setMovDate(e.target.value)} /></div>
                 <div>
                   <Label>Motivo</Label>
                   <Select value={reason} onValueChange={setReason}>
