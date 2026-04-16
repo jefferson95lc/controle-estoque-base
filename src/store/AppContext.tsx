@@ -1,16 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Product, Supplier, StockMovement } from '@/types';
+import { Product, StockMovement } from '@/types';
 
 interface AppState {
   products: Product[];
-  suppliers: Supplier[];
   movements: StockMovement[];
   addProduct: (p: Omit<Product, 'id'>) => void;
   updateProduct: (p: Product) => void;
   deleteProduct: (id: string) => void;
-  addSupplier: (s: Omit<Supplier, 'id'>) => void;
-  updateSupplier: (s: Supplier) => void;
-  deleteSupplier: (id: string) => void;
   addStockIn: (productId: string, quantity: number, reason: string) => void;
   addStockOut: (productId: string, quantity: number, reason: string) => boolean;
 }
@@ -30,11 +26,9 @@ function uid() {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>(() => loadFromStorage('products', []));
-  const [suppliers, setSuppliers] = useState<Supplier[]>(() => loadFromStorage('suppliers', []));
   const [movements, setMovements] = useState<StockMovement[]>(() => loadFromStorage('movements', []));
 
   useEffect(() => { localStorage.setItem('products', JSON.stringify(products)); }, [products]);
-  useEffect(() => { localStorage.setItem('suppliers', JSON.stringify(suppliers)); }, [suppliers]);
   useEffect(() => { localStorage.setItem('movements', JSON.stringify(movements)); }, [movements]);
 
   const addProduct = (p: Omit<Product, 'id'>) => setProducts(prev => [...prev, { ...p, id: uid() }]);
@@ -78,9 +72,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      products, suppliers, movements,
+      products, movements,
       addProduct, updateProduct, deleteProduct,
-      addSupplier, updateSupplier, deleteSupplier,
       addStockIn, addStockOut,
     }}>
       {children}
