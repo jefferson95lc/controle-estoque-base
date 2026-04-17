@@ -17,12 +17,6 @@ const emptyProduct: Omit<Product, 'id'> = { name: '', sku: '', category: '', uni
 export default function ProductsPage() {
   const { products, addProduct, updateProduct, deleteProduct, getStock, activeCenterId, categories } = useApp();
   const activeCategories = categories.filter(c => c.active);
-  // include current value if it's now inactive/missing so the select still shows it
-  const categoryOptions = Array.from(new Set([
-    ...activeCategories.map(c => c.name),
-    ...(form_currentCategoryHelper()),
-  ]));
-  function form_currentCategoryHelper() { return []; }
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
