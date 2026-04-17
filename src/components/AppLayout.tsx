@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Package, FileSpreadsheet, Warehouse, BarChart3, LayoutDashboard, Building2 } from 'lucide-react';
+import { Package, FileSpreadsheet, Warehouse, BarChart3, LayoutDashboard, Building2, Tags } from 'lucide-react';
 import CostCenterSelector from './CostCenterSelector';
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/produtos', icon: Package, label: 'Produtos' },
+  { to: '/categorias', icon: Tags, label: 'Categorias' },
   { to: '/centros-custo', icon: Building2, label: 'Centros de Custo' },
   { to: '/estoque', icon: Warehouse, label: 'Estoque' },
   { to: '/ordem-compras', icon: FileSpreadsheet, label: 'Ordem de Compras' },

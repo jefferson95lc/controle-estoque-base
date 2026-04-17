@@ -11,12 +11,18 @@ import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 const UNITS = ['UN', 'KG', 'CX', 'L', 'M', 'PCT'];
-const CATEGORIES = ['Matéria-prima', 'Embalagem', 'Insumo', 'Produto acabado', 'Outros'];
 
 const emptyProduct: Omit<Product, 'id'> = { name: '', sku: '', category: '', unit: 'UN', minStock: 0 };
 
 export default function ProductsPage() {
-  const { products, addProduct, updateProduct, deleteProduct, getStock, activeCenterId } = useApp();
+  const { products, addProduct, updateProduct, deleteProduct, getStock, activeCenterId, categories } = useApp();
+  const activeCategories = categories.filter(c => c.active);
+  // include current value if it's now inactive/missing so the select still shows it
+  const categoryOptions = Array.from(new Set([
+    ...activeCategories.map(c => c.name),
+    ...(form_currentCategoryHelper()),
+  ]));
+  function form_currentCategoryHelper() { return []; }
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -66,8 +72,13 @@ export default function ProductsPage() {
                 <div>
                   <Label>Categoria</Label>
                   <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                    <SelectTrigger><SelectValue placeholder={activeCategories.length ? 'Selecione' : 'Cadastre categorias primeiro'} /></SelectTrigger>
+                    <SelectContent>
+                      {activeCategories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                      {form.category && !activeCategories.some(c => c.name === form.category) && (
+                        <SelectItem value={form.category}>{form.category} (inativa)</SelectItem>
+                      )}
+                    </SelectContent>
                   </Select>
                 </div>
                 <div>
