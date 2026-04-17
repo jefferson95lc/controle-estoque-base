@@ -1,30 +1,46 @@
 import { useApp } from '@/store/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, AlertTriangle, TrendingUp, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { Package, AlertTriangle, ArrowUpCircle, ArrowDownCircle, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 
 export default function DashboardPage() {
-  const { products, movements } = useApp();
+  const { products, movements, costCenters, getStock, activeCenterId, matrizId, filiais } = useApp();
 
-  const lowStock = products.filter(p => p.quantity <= p.minStock);
-  const recentMovements = [...movements].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
-  const totalEntradas = movements.filter(m => m.type === 'entrada').length;
-  const totalSaidas = movements.filter(m => m.type === 'saida').length;
+  const isConsolidated = !activeCenterId || activeCenterId === matrizId;
+  const scopeLabel = isConsolidated
+    ? (matrizId ? 'Matriz (Consolidado)' : 'Consolidado')
+    : (costCenters.find(c => c.id === activeCenterId)?.name || '—');
+
+  const lowStock = products.filter(p => getStock(p.id, activeCenterId) <= p.minStock);
+
+  const scopedMovements = isConsolidated
+    ? movements
+    : movements.filter(m => m.costCenterId === activeCenterId || m.destinationCenterId === activeCenterId);
+
+  const recentMovements = [...scopedMovements].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+  const totalEntradas = scopedMovements.filter(m => m.type === 'entrada').length;
+  const totalSaidas = scopedMovements.filter(m => m.type === 'saida').length;
 
   const stats = [
-    { label: 'Total de Produtos', value: products.length, icon: Package, color: 'text-primary' },
+    { label: 'Produtos', value: products.length, icon: Package, color: 'text-primary' },
     { label: 'Estoque Baixo', value: lowStock.length, icon: AlertTriangle, color: 'text-warning' },
     { label: 'Entradas', value: totalEntradas, icon: ArrowUpCircle, color: 'text-success' },
     { label: 'Saídas', value: totalSaidas, icon: ArrowDownCircle, color: 'text-muted-foreground' },
   ];
 
   const getProductName = (id: string) => products.find(p => p.id === id)?.name || '—';
+  const getCenterName = (id?: string) => id ? (costCenters.find(c => c.id === id)?.name || '—') : '—';
 
   return (
     <div className="space-y-6">
-      <h1 className="font-heading text-2xl font-bold">Dashboard</h1>
+      <div>
+        <h1 className="font-heading text-2xl font-bold">Dashboard</h1>
+        <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+          <Building2 size={14} /> {scopeLabel}
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(s => (
@@ -42,6 +58,30 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      {isConsolidated && filiais.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="font-heading text-lg">Estoque por Filial</CardTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {filiais.map(f => {
+                const total = products.reduce((sum, p) => sum + getStock(p.id, f.id), 0);
+                const low = products.filter(p => getStock(p.id, f.id) <= p.minStock).length;
+                return (
+                  <div key={f.id} className="p-3 rounded-md border bg-secondary/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Building2 size={14} className="text-muted-foreground" />
+                      <span className="font-medium text-sm">{f.name}</span>
+                    </div>
+                    <p className="text-2xl font-heading font-bold">{total}</p>
+                    <p className="text-xs text-muted-foreground">{low} item(ns) abaixo do mínimo</p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle className="font-heading text-lg">Produtos com Estoque Baixo</CardTitle></CardHeader>
@@ -50,12 +90,15 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">Nenhum produto abaixo do estoque mínimo.</p>
             ) : (
               <div className="space-y-2">
-                {lowStock.map(p => (
-                  <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-destructive/10">
-                    <span className="text-sm font-medium">{p.name}</span>
-                    <span className="text-sm text-destructive font-semibold">{p.quantity}/{p.minStock} {p.unit}</span>
-                  </div>
-                ))}
+                {lowStock.map(p => {
+                  const qty = getStock(p.id, activeCenterId);
+                  return (
+                    <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-destructive/10">
+                      <span className="text-sm font-medium">{p.name}</span>
+                      <span className="text-sm text-destructive font-semibold">{qty}/{p.minStock} {p.unit}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -69,11 +112,18 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-2">
                 {recentMovements.map(m => (
-                  <div key={m.id} className="flex items-center justify-between p-2 rounded-md bg-secondary">
-                    <span className="text-sm font-medium">{getProductName(m.productId)}</span>
-                    <span className="text-xs text-muted-foreground">{format(new Date(m.date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</span>
-                    <Badge variant={m.type === 'entrada' ? 'default' : 'destructive'}>
-                      {m.type === 'entrada' ? '↑ Entrada' : '↓ Saída'}
+                  <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-secondary">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{getProductName(m.productId)}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {m.type === 'transferencia'
+                          ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
+                          : getCenterName(m.costCenterId)}
+                        {' · '}{format(new Date(m.date), 'dd/MM HH:mm', { locale: ptBR })}
+                      </p>
+                    </div>
+                    <Badge variant={m.type === 'entrada' ? 'default' : m.type === 'saida' ? 'destructive' : 'secondary'}>
+                      {m.type === 'entrada' ? '↑' : m.type === 'saida' ? '↓' : '⇄'} {m.quantity}
                     </Badge>
                   </div>
                 ))}
