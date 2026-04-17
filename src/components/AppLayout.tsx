@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Package, FileSpreadsheet, Warehouse, BarChart3, LayoutDashboard } from 'lucide-react';
+import { Package, FileSpreadsheet, Warehouse, BarChart3, LayoutDashboard, Building2 } from 'lucide-react';
+import CostCenterSelector from './CostCenterSelector';
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/produtos', icon: Package, label: 'Produtos' },
-  
+  { to: '/centros-custo', icon: Building2, label: 'Centros de Custo' },
   { to: '/estoque', icon: Warehouse, label: 'Estoque' },
   { to: '/ordem-compras', icon: FileSpreadsheet, label: 'Ordem de Compras' },
   { to: '/relatorios', icon: BarChart3, label: 'Relatórios' },
@@ -39,8 +40,12 @@ export default function AppLayout() {
           ))}
         </nav>
       </aside>
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-6 max-w-6xl mx-auto">
+      <main className="flex-1 overflow-y-auto flex flex-col">
+        <header className="h-14 shrink-0 border-b bg-background flex items-center justify-end px-6 gap-4">
+          <span className="text-xs text-muted-foreground">Operando em:</span>
+          <CostCenterSelector />
+        </header>
+        <div className="p-6 max-w-6xl mx-auto w-full">
           <Outlet />
         </div>
       </main>
