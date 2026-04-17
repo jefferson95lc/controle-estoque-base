@@ -16,6 +16,12 @@ export interface CostCenter {
   type: CostCenterType;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
 export interface StockMovement {
   id: string;
   productId: string;

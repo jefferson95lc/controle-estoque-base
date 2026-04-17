@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
-import { Product, StockMovement, CostCenter } from '@/types';
+import { Product, StockMovement, CostCenter, Category } from '@/types';
 
 type StockMap = Record<string, Record<string, number>>; // productId -> costCenterId -> qty
 
@@ -7,6 +7,7 @@ interface AppState {
   products: Product[];
   movements: StockMovement[];
   costCenters: CostCenter[];
+  categories: Category[];
   stockByCenter: StockMap;
 
   // active context
@@ -22,6 +23,11 @@ interface AppState {
   addCostCenter: (c: Omit<CostCenter, 'id'>) => { ok: boolean; error?: string };
   updateCostCenter: (c: CostCenter) => { ok: boolean; error?: string };
   deleteCostCenter: (id: string) => { ok: boolean; error?: string };
+
+  // categories
+  addCategory: (c: Omit<Category, 'id'>) => { ok: boolean; error?: string };
+  updateCategory: (c: Category) => { ok: boolean; error?: string };
+  deleteCategory: (id: string) => { ok: boolean; error?: string };
 
   // stock movements
   addStockIn: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string) => boolean;
@@ -53,12 +59,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [costCenters, setCostCenters] = useState<CostCenter[]>(() => loadFromStorage('costCenters', []));
   const [stockByCenter, setStockByCenter] = useState<StockMap>(() => loadFromStorage('stockByCenter', {}));
   const [activeCenterId, setActiveCenterId] = useState<string | null>(() => loadFromStorage<string | null>('activeCenterId', null));
+  const [categories, setCategories] = useState<Category[]>(() => loadFromStorage<Category[]>('categories', [
+    { id: uid(), name: 'Matéria-prima', active: true },
+    { id: uid(), name: 'Embalagem', active: true },
+    { id: uid(), name: 'Insumo', active: true },
+    { id: uid(), name: 'Produto acabado', active: true },
+    { id: uid(), name: 'Outros', active: true },
+  ]));
 
   useEffect(() => { localStorage.setItem('products_v2', JSON.stringify(products)); }, [products]);
   useEffect(() => { localStorage.setItem('movements_v2', JSON.stringify(movements)); }, [movements]);
   useEffect(() => { localStorage.setItem('costCenters', JSON.stringify(costCenters)); }, [costCenters]);
   useEffect(() => { localStorage.setItem('stockByCenter', JSON.stringify(stockByCenter)); }, [stockByCenter]);
   useEffect(() => { localStorage.setItem('activeCenterId', JSON.stringify(activeCenterId)); }, [activeCenterId]);
+  useEffect(() => { localStorage.setItem('categories', JSON.stringify(categories)); }, [categories]);
 
   const matriz = useMemo(() => costCenters.find(c => c.type === 'matriz') || null, [costCenters]);
   const filiais = useMemo(() => costCenters.filter(c => c.type === 'filial'), [costCenters]);
@@ -89,6 +103,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return { ok: false, error: 'Já existe uma Matriz cadastrada.' };
     }
     setCostCenters(prev => prev.map(x => x.id === c.id ? c : x));
+    return { ok: true };
+  };
+
+  // ===== Categories =====
+  const addCategory = (c: Omit<Category, 'id'>) => {
+    const name = c.name.trim();
+    if (!name) return { ok: false, error: 'Nome obrigatório.' };
+    if (categories.some(x => x.name.toLowerCase() === name.toLowerCase())) {
+      return { ok: false, error: 'Já existe uma categoria com esse nome.' };
+    }
+    setCategories(prev => [...prev, { ...c, name, id: uid() }]);
+    return { ok: true };
+  };
+
+  const updateCategory = (c: Category) => {
+    const name = c.name.trim();
+    if (!name) return { ok: false, error: 'Nome obrigatório.' };
+    if (categories.some(x => x.id !== c.id && x.name.toLowerCase() === name.toLowerCase())) {
+      return { ok: false, error: 'Já existe uma categoria com esse nome.' };
+    }
+    const old = categories.find(x => x.id === c.id);
+    setCategories(prev => prev.map(x => x.id === c.id ? { ...c, name } : x));
+    // propagate name change to products that referenced the old name
+    if (old && old.name !== name) {
+      setProducts(prev => prev.map(p => p.category === old.name ? { ...p, category: name } : p));
+    }
+    return { ok: true };
+  };
+
+  const deleteCategory = (id: string) => {
+    const cat = categories.find(c => c.id === id);
+    if (!cat) return { ok: false, error: 'Categoria não encontrada.' };
+    const inUse = products.some(p => p.category === cat.name);
+    if (inUse) return { ok: false, error: 'Categoria vinculada a produtos. Inative-a em vez de excluir.' };
+    setCategories(prev => prev.filter(c => c.id !== id));
     return { ok: true };
   };
 
@@ -166,10 +215,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      products, movements, costCenters, stockByCenter,
+      products, movements, costCenters, categories, stockByCenter,
       activeCenterId, setActiveCenterId,
       addProduct, updateProduct, deleteProduct,
       addCostCenter, updateCostCenter, deleteCostCenter,
+      addCategory, updateCategory, deleteCategory,
       addStockIn, addStockOut, transferStock,
       getStock,
       matrizId: matriz?.id || null,
