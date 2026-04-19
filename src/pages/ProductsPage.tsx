@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ProductBulkImport } from '@/components/ProductBulkImport';
 
 const UNITS = ['UN', 'KG', 'CX', 'L', 'M', 'PCT'];
 
@@ -49,6 +50,8 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Produtos</h1>
+        <div className="flex items-center gap-2">
+        <ProductBulkImport />
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(null); setForm(emptyProduct); } }}>
           <DialogTrigger asChild>
             <Button><Plus size={16} className="mr-2" />Novo Produto</Button>
@@ -92,6 +95,7 @@ export default function ProductsPage() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="relative">
