@@ -95,6 +95,7 @@ export default function ProductsPage() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="relative">
