@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
 import { Product, StockMovement, CostCenter, Category } from '@/types';
 
 type StockMap = Record<string, Record<string, number>>; // productId -> costCenterId -> qty
@@ -42,37 +42,98 @@ interface AppState {
 
 const AppContext = createContext<AppState | null>(null);
 
-function loadFromStorage<T>(key: string, fallback: T): T {
+const KEYS = {
+  products: 'products_v2',
+  movements: 'movements_v2',
+  costCenters: 'costCenters',
+  stockByCenter: 'stockByCenter',
+  activeCenterId: 'activeCenterId',
+  categories: 'categories',
+} as const;
+
+function safeGet<T>(key: string, fallback: T): T {
   try {
     const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : fallback;
-  } catch { return fallback; }
+    if (data === null) return fallback;
+    return JSON.parse(data) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function safeSet(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    console.error('[AppContext] Falha ao salvar', key, err);
+  }
 }
 
 function uid() {
   return crypto.randomUUID();
 }
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(() => loadFromStorage('products_v2', []));
-  const [movements, setMovements] = useState<StockMovement[]>(() => loadFromStorage('movements_v2', []));
-  const [costCenters, setCostCenters] = useState<CostCenter[]>(() => loadFromStorage('costCenters', []));
-  const [stockByCenter, setStockByCenter] = useState<StockMap>(() => loadFromStorage('stockByCenter', {}));
-  const [activeCenterId, setActiveCenterId] = useState<string | null>(() => loadFromStorage<string | null>('activeCenterId', null));
-  const [categories, setCategories] = useState<Category[]>(() => loadFromStorage<Category[]>('categories', [
-    { id: uid(), name: 'Matéria-prima', active: true },
-    { id: uid(), name: 'Embalagem', active: true },
-    { id: uid(), name: 'Insumo', active: true },
-    { id: uid(), name: 'Produto acabado', active: true },
-    { id: uid(), name: 'Outros', active: true },
-  ]));
+const DEFAULT_CATEGORIES: Category[] = [
+  { id: 'cat-materia-prima', name: 'Matéria-prima', active: true },
+  { id: 'cat-embalagem', name: 'Embalagem', active: true },
+  { id: 'cat-insumo', name: 'Insumo', active: true },
+  { id: 'cat-produto-acabado', name: 'Produto acabado', active: true },
+  { id: 'cat-outros', name: 'Outros', active: true },
+];
 
-  useEffect(() => { localStorage.setItem('products_v2', JSON.stringify(products)); }, [products]);
-  useEffect(() => { localStorage.setItem('movements_v2', JSON.stringify(movements)); }, [movements]);
-  useEffect(() => { localStorage.setItem('costCenters', JSON.stringify(costCenters)); }, [costCenters]);
-  useEffect(() => { localStorage.setItem('stockByCenter', JSON.stringify(stockByCenter)); }, [stockByCenter]);
-  useEffect(() => { localStorage.setItem('activeCenterId', JSON.stringify(activeCenterId)); }, [activeCenterId]);
-  useEffect(() => { localStorage.setItem('categories', JSON.stringify(categories)); }, [categories]);
+export function AppProvider({ children }: { children: ReactNode }) {
+  const [products, setProductsState] = useState<Product[]>(() => safeGet(KEYS.products, []));
+  const [movements, setMovementsState] = useState<StockMovement[]>(() => safeGet(KEYS.movements, []));
+  const [costCenters, setCostCentersState] = useState<CostCenter[]>(() => safeGet(KEYS.costCenters, []));
+  const [stockByCenter, setStockByCenterState] = useState<StockMap>(() => safeGet(KEYS.stockByCenter, {}));
+  const [activeCenterId, setActiveCenterIdState] = useState<string | null>(() => safeGet<string | null>(KEYS.activeCenterId, null));
+  const [categories, setCategoriesState] = useState<Category[]>(() => safeGet<Category[]>(KEYS.categories, DEFAULT_CATEGORIES));
+
+  // Setters that persist SYNCHRONOUSLY (no useEffect race conditions)
+  const setProducts = useCallback((updater: React.SetStateAction<Product[]>) => {
+    setProductsState(prev => {
+      const next = typeof updater === 'function' ? (updater as (p: Product[]) => Product[])(prev) : updater;
+      safeSet(KEYS.products, next);
+      return next;
+    });
+  }, []);
+
+  const setMovements = useCallback((updater: React.SetStateAction<StockMovement[]>) => {
+    setMovementsState(prev => {
+      const next = typeof updater === 'function' ? (updater as (p: StockMovement[]) => StockMovement[])(prev) : updater;
+      safeSet(KEYS.movements, next);
+      return next;
+    });
+  }, []);
+
+  const setCostCenters = useCallback((updater: React.SetStateAction<CostCenter[]>) => {
+    setCostCentersState(prev => {
+      const next = typeof updater === 'function' ? (updater as (p: CostCenter[]) => CostCenter[])(prev) : updater;
+      safeSet(KEYS.costCenters, next);
+      return next;
+    });
+  }, []);
+
+  const setStockByCenter = useCallback((updater: React.SetStateAction<StockMap>) => {
+    setStockByCenterState(prev => {
+      const next = typeof updater === 'function' ? (updater as (p: StockMap) => StockMap)(prev) : updater;
+      safeSet(KEYS.stockByCenter, next);
+      return next;
+    });
+  }, []);
+
+  const setActiveCenterId = useCallback((id: string | null) => {
+    setActiveCenterIdState(id);
+    safeSet(KEYS.activeCenterId, id);
+  }, []);
+
+  const setCategories = useCallback((updater: React.SetStateAction<Category[]>) => {
+    setCategoriesState(prev => {
+      const next = typeof updater === 'function' ? (updater as (p: Category[]) => Category[])(prev) : updater;
+      safeSet(KEYS.categories, next);
+      return next;
+    });
+  }, []);
 
   const matriz = useMemo(() => costCenters.find(c => c.type === 'matriz') || null, [costCenters]);
   const filiais = useMemo(() => costCenters.filter(c => c.type === 'filial'), [costCenters]);
@@ -106,6 +167,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   };
 
+  const deleteCostCenter = (id: string) => {
+    const center = costCenters.find(c => c.id === id);
+    if (!center) return { ok: false, error: 'Centro de custo não encontrado.' };
+    const hasStock = Object.values(stockByCenter).some(byC => (byC[id] || 0) > 0);
+    if (hasStock) return { ok: false, error: 'Existe estoque neste centro de custo. Zere antes de excluir.' };
+    setCostCenters(prev => prev.filter(c => c.id !== id));
+    if (activeCenterId === id) setActiveCenterId(null);
+    return { ok: true };
+  };
+
   // ===== Categories =====
   const addCategory = (c: Omit<Category, 'id'>) => {
     const name = c.name.trim();
@@ -125,7 +196,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     const old = categories.find(x => x.id === c.id);
     setCategories(prev => prev.map(x => x.id === c.id ? { ...c, name } : x));
-    // propagate name change to products that referenced the old name
     if (old && old.name !== name) {
       setProducts(prev => prev.map(p => p.category === old.name ? { ...p, category: name } : p));
     }
@@ -141,21 +211,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   };
 
-  const deleteCostCenter = (id: string) => {
-    const center = costCenters.find(c => c.id === id);
-    if (!center) return { ok: false, error: 'Centro de custo não encontrado.' };
-    const hasStock = Object.values(stockByCenter).some(byC => (byC[id] || 0) > 0);
-    if (hasStock) return { ok: false, error: 'Existe estoque neste centro de custo. Zere antes de excluir.' };
-    setCostCenters(prev => prev.filter(c => c.id !== id));
-    if (activeCenterId === id) setActiveCenterId(null);
-    return { ok: true };
-  };
-
   // ===== Stock helpers =====
   const getStock = (productId: string, costCenterId: string | null): number => {
     const byCenter = stockByCenter[productId] || {};
     if (!costCenterId || (matriz && costCenterId === matriz.id)) {
-      // Consolidated: sum across all filiais
       return filiais.reduce((sum, f) => sum + (byCenter[f.id] || 0), 0);
     }
     return byCenter[costCenterId] || 0;
