@@ -4,6 +4,7 @@ import { Package, AlertTriangle, ArrowUpCircle, ArrowDownCircle, Building2 } fro
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
+import ForecastCard from '@/components/ForecastCard';
 
 export default function DashboardPage() {
   const { products, movements, costCenters, getStock, activeCenterId, matrizId, filiais } = useApp();
@@ -132,6 +133,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <ForecastCard />
     </div>
   );
 }
