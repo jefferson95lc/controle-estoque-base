@@ -1,8 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Package, FileSpreadsheet, Warehouse, BarChart3, LayoutDashboard, Building2, Tags } from 'lucide-react';
+import { Package, FileSpreadsheet, Warehouse, BarChart3, LayoutDashboard, Building2, Tags, Users, LogOut } from 'lucide-react';
 import CostCenterSelector from './CostCenterSelector';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
 
-const links = [
+const baseLinks = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/produtos', icon: Package, label: 'Produtos' },
   { to: '/categorias', icon: Tags, label: 'Categorias' },
@@ -13,6 +15,10 @@ const links = [
 ];
 
 export default function AppLayout() {
+  const { isMaster, signOut, user } = useAuth();
+  const links = isMaster
+    ? [...baseLinks, { to: '/usuarios', icon: Users, label: 'Usuários' }]
+    : baseLinks;
   return (
     <div className="flex h-screen overflow-hidden">
       <aside className="w-60 shrink-0 bg-sidebar text-sidebar-foreground flex flex-col">
@@ -45,6 +51,11 @@ export default function AppLayout() {
         <header className="h-14 shrink-0 border-b bg-background flex items-center justify-end px-6 gap-4">
           <span className="text-xs text-muted-foreground">Operando em:</span>
           <CostCenterSelector />
+          <div className="h-6 w-px bg-border" />
+          <span className="text-xs text-muted-foreground hidden sm:inline">{user?.email}</span>
+          <Button size="sm" variant="ghost" onClick={signOut}>
+            <LogOut size={16} /> Sair
+          </Button>
         </header>
         <div className="p-6 max-w-6xl mx-auto w-full">
           <Outlet />
