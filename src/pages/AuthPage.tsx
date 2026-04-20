@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function AuthPage() {
   const { user, signIn, loading } = useAuth();
   const { toast } = useToast();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -20,9 +22,23 @@ export default function AuthPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await signIn(email, password);
+    if (mode === "signin") {
+      const { error } = await signIn(email, password);
+      if (error) toast({ title: "Erro ao entrar", description: error, variant: "destructive" });
+    } else {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/` },
+      });
+      if (error) {
+        toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Conta criada", description: "Você já pode entrar." });
+        setMode("signin");
+      }
+    }
     setSubmitting(false);
-    if (error) toast({ title: "Erro ao entrar", description: error, variant: "destructive" });
   };
 
   return (
@@ -30,7 +46,9 @@ export default function AuthPage() {
       <Card className="w-full max-w-sm p-6 space-y-4">
         <div className="text-center">
           <h1 className="font-heading text-2xl font-bold">📦 GestãoPro</h1>
-          <p className="text-sm text-muted-foreground mt-1">Entre com sua conta</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {mode === "signin" ? "Entre com sua conta" : "Crie sua conta"}
+          </p>
         </div>
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="space-y-1.5">
@@ -39,12 +57,19 @@ export default function AuthPage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password">Senha</Label>
-            <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
           <Button type="submit" className="w-full" disabled={submitting}>
-            {submitting ? "Entrando..." : "Entrar"}
+            {submitting ? "Aguarde..." : mode === "signin" ? "Entrar" : "Criar conta"}
           </Button>
         </form>
+        <button
+          type="button"
+          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+          className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {mode === "signin" ? "Não tem conta? Criar conta" : "Já tem conta? Entrar"}
+        </button>
       </Card>
     </div>
   );
