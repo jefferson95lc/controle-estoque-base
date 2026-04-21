@@ -112,6 +112,7 @@ export default function StockPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <StockBulkImport />
           <Button onClick={openIn}><Plus size={16} className="mr-2" />Entrada</Button>
           <Button variant="outline" onClick={openOut}><Minus size={16} className="mr-2" />Saída</Button>
           <Button variant="outline" onClick={openTransfer}><ArrowLeftRight size={16} className="mr-2" />Transferir</Button>
