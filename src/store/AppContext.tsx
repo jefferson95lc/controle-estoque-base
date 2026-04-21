@@ -74,6 +74,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || cancelled) {
+        setLoading(false);
+        return;
+      }
+
       const [catRes, ccRes, prodRes, movRes] = await Promise.all([
         supabase.from('categories').select('*').order('name'),
         supabase.from('cost_centers').select('*').order('name'),
@@ -92,8 +98,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })));
       setLoading(false);
     }
+
     load();
-    return () => { cancelled = true; };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        setLoading(true);
+        load();
+      } else if (event === 'SIGNED_OUT') {
+        setProducts([]);
+        setMovements([]);
+        setCostCenters([]);
+        setCategories([]);
+        setLoading(false);
+      }
+    });
+
+    return () => { cancelled = true; subscription.unsubscribe(); };
   }, []);
 
   // ===== Products =====
