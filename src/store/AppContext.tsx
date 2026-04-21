@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback, useEffect } from 'react';
 import { Product, StockMovement, CostCenter, Category } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
 type StockMap = Record<string, Record<string, number>>; // productId -> costCenterId -> qty
 
@@ -9,32 +10,27 @@ interface AppState {
   costCenters: CostCenter[];
   categories: Category[];
   stockByCenter: StockMap;
+  loading: boolean;
 
-  // active context
-  activeCenterId: string | null; // null = consolidado (matriz)
+  activeCenterId: string | null;
   setActiveCenterId: (id: string | null) => void;
 
-  // products
-  addProduct: (p: Omit<Product, 'id'>) => void;
-  updateProduct: (p: Product) => void;
-  deleteProduct: (id: string) => void;
+  addProduct: (p: Omit<Product, 'id'>) => Promise<void>;
+  updateProduct: (p: Product) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
 
-  // cost centers
-  addCostCenter: (c: Omit<CostCenter, 'id'>) => { ok: boolean; error?: string };
-  updateCostCenter: (c: CostCenter) => { ok: boolean; error?: string };
-  deleteCostCenter: (id: string) => { ok: boolean; error?: string };
+  addCostCenter: (c: Omit<CostCenter, 'id'>) => Promise<{ ok: boolean; error?: string }>;
+  updateCostCenter: (c: CostCenter) => Promise<{ ok: boolean; error?: string }>;
+  deleteCostCenter: (id: string) => Promise<{ ok: boolean; error?: string }>;
 
-  // categories
-  addCategory: (c: Omit<Category, 'id'>) => { ok: boolean; error?: string };
-  updateCategory: (c: Category) => { ok: boolean; error?: string };
-  deleteCategory: (id: string) => { ok: boolean; error?: string };
+  addCategory: (c: Omit<Category, 'id'>) => Promise<{ ok: boolean; error?: string }>;
+  updateCategory: (c: Category) => Promise<{ ok: boolean; error?: string }>;
+  deleteCategory: (id: string) => Promise<{ ok: boolean; error?: string }>;
 
-  // stock movements
-  addStockIn: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string) => boolean;
-  addStockOut: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string) => boolean;
-  transferStock: (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string) => boolean;
+  addStockIn: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string) => Promise<boolean>;
+  addStockOut: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string) => Promise<boolean>;
+  transferStock: (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string) => Promise<boolean>;
 
-  // helpers
   getStock: (productId: string, costCenterId: string | null) => number;
   matrizId: string | null;
   filiais: CostCenter[];
@@ -42,239 +38,227 @@ interface AppState {
 
 const AppContext = createContext<AppState | null>(null);
 
-const KEYS = {
-  products: 'products_v2',
-  movements: 'movements_v2',
-  costCenters: 'costCenters',
-  stockByCenter: 'stockByCenter',
-  activeCenterId: 'activeCenterId',
-  categories: 'categories',
-} as const;
-
-function safeGet<T>(key: string, fallback: T): T {
-  try {
-    const data = localStorage.getItem(key);
-    if (data === null) return fallback;
-    return JSON.parse(data) as T;
-  } catch {
-    return fallback;
+function buildStockMap(movements: StockMovement[]): StockMap {
+  const map: StockMap = {};
+  for (const m of movements) {
+    if (!map[m.productId]) map[m.productId] = {};
+    const pm = map[m.productId];
+    if (m.type === 'entrada') {
+      pm[m.costCenterId] = (pm[m.costCenterId] || 0) + m.quantity;
+    } else if (m.type === 'saida') {
+      pm[m.costCenterId] = (pm[m.costCenterId] || 0) - m.quantity;
+    } else if (m.type === 'transferencia') {
+      pm[m.costCenterId] = (pm[m.costCenterId] || 0) - m.quantity;
+      if (m.destinationCenterId) {
+        pm[m.destinationCenterId] = (pm[m.destinationCenterId] || 0) + m.quantity;
+      }
+    }
   }
+  return map;
 }
-
-function safeSet(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (err) {
-    console.error('[AppContext] Falha ao salvar', key, err);
-  }
-}
-
-function uid() {
-  return crypto.randomUUID();
-}
-
-const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-materia-prima', name: 'Matéria-prima', active: true },
-  { id: 'cat-embalagem', name: 'Embalagem', active: true },
-  { id: 'cat-insumo', name: 'Insumo', active: true },
-  { id: 'cat-produto-acabado', name: 'Produto acabado', active: true },
-  { id: 'cat-outros', name: 'Outros', active: true },
-];
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [products, setProductsState] = useState<Product[]>(() => safeGet(KEYS.products, []));
-  const [movements, setMovementsState] = useState<StockMovement[]>(() => safeGet(KEYS.movements, []));
-  const [costCenters, setCostCentersState] = useState<CostCenter[]>(() => safeGet(KEYS.costCenters, []));
-  const [stockByCenter, setStockByCenterState] = useState<StockMap>(() => safeGet(KEYS.stockByCenter, {}));
-  const [activeCenterId, setActiveCenterIdState] = useState<string | null>(() => safeGet<string | null>(KEYS.activeCenterId, null));
-  const [categories, setCategoriesState] = useState<Category[]>(() => safeGet<Category[]>(KEYS.categories, DEFAULT_CATEGORIES));
+  const [products, setProducts] = useState<Product[]>([]);
+  const [movements, setMovements] = useState<StockMovement[]>([]);
+  const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [activeCenterId, setActiveCenterId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Setters that persist SYNCHRONOUSLY (no useEffect race conditions)
-  const setProducts = useCallback((updater: React.SetStateAction<Product[]>) => {
-    setProductsState(prev => {
-      const next = typeof updater === 'function' ? (updater as (p: Product[]) => Product[])(prev) : updater;
-      safeSet(KEYS.products, next);
-      return next;
-    });
-  }, []);
-
-  const setMovements = useCallback((updater: React.SetStateAction<StockMovement[]>) => {
-    setMovementsState(prev => {
-      const next = typeof updater === 'function' ? (updater as (p: StockMovement[]) => StockMovement[])(prev) : updater;
-      safeSet(KEYS.movements, next);
-      return next;
-    });
-  }, []);
-
-  const setCostCenters = useCallback((updater: React.SetStateAction<CostCenter[]>) => {
-    setCostCentersState(prev => {
-      const next = typeof updater === 'function' ? (updater as (p: CostCenter[]) => CostCenter[])(prev) : updater;
-      safeSet(KEYS.costCenters, next);
-      return next;
-    });
-  }, []);
-
-  const setStockByCenter = useCallback((updater: React.SetStateAction<StockMap>) => {
-    setStockByCenterState(prev => {
-      const next = typeof updater === 'function' ? (updater as (p: StockMap) => StockMap)(prev) : updater;
-      safeSet(KEYS.stockByCenter, next);
-      return next;
-    });
-  }, []);
-
-  const setActiveCenterId = useCallback((id: string | null) => {
-    setActiveCenterIdState(id);
-    safeSet(KEYS.activeCenterId, id);
-  }, []);
-
-  const setCategories = useCallback((updater: React.SetStateAction<Category[]>) => {
-    setCategoriesState(prev => {
-      const next = typeof updater === 'function' ? (updater as (p: Category[]) => Category[])(prev) : updater;
-      safeSet(KEYS.categories, next);
-      return next;
-    });
-  }, []);
+  const stockByCenter = useMemo(() => buildStockMap(movements), [movements]);
 
   const matriz = useMemo(() => costCenters.find(c => c.type === 'matriz') || null, [costCenters]);
   const filiais = useMemo(() => costCenters.filter(c => c.type === 'filial'), [costCenters]);
 
+  // ===== Load from DB =====
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const [catRes, ccRes, prodRes, movRes] = await Promise.all([
+        supabase.from('categories').select('*').order('name'),
+        supabase.from('cost_centers').select('*').order('name'),
+        supabase.from('products').select('*').order('name'),
+        supabase.from('stock_movements').select('*').order('date', { ascending: true }),
+      ]);
+      if (cancelled) return;
+
+      if (catRes.data) setCategories(catRes.data.map(r => ({ id: r.id, name: r.name, active: r.active })));
+      if (ccRes.data) setCostCenters(ccRes.data.map(r => ({ id: r.id, name: r.name, type: r.type as 'matriz' | 'filial' })));
+      if (prodRes.data) setProducts(prodRes.data.map(r => ({ id: r.id, name: r.name, sku: r.sku, category: r.category, unit: r.unit, minStock: r.min_stock })));
+      if (movRes.data) setMovements(movRes.data.map(r => ({
+        id: r.id, productId: r.product_id, type: r.type as StockMovement['type'],
+        quantity: r.quantity, reason: r.reason, date: r.date,
+        costCenterId: r.cost_center_id, destinationCenterId: r.destination_center_id || undefined,
+      })));
+      setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
   // ===== Products =====
-  const addProduct = (p: Omit<Product, 'id'>) => setProducts(prev => [...prev, { ...p, id: uid() }]);
-  const updateProduct = (p: Product) => setProducts(prev => prev.map(x => x.id === p.id ? p : x));
-  const deleteProduct = (id: string) => {
+  const addProduct = useCallback(async (p: Omit<Product, 'id'>) => {
+    const { data, error } = await supabase.from('products').insert({
+      name: p.name, sku: p.sku, category: p.category, unit: p.unit, min_stock: p.minStock,
+    }).select().single();
+    if (error) { console.error(error); return; }
+    setProducts(prev => [...prev, { id: data.id, name: data.name, sku: data.sku, category: data.category, unit: data.unit, minStock: data.min_stock }]);
+  }, []);
+
+  const updateProduct = useCallback(async (p: Product) => {
+    const { error } = await supabase.from('products').update({
+      name: p.name, sku: p.sku, category: p.category, unit: p.unit, min_stock: p.minStock,
+    }).eq('id', p.id);
+    if (error) { console.error(error); return; }
+    setProducts(prev => prev.map(x => x.id === p.id ? p : x));
+  }, []);
+
+  const deleteProduct = useCallback(async (id: string) => {
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) { console.error(error); return; }
     setProducts(prev => prev.filter(x => x.id !== id));
-    setStockByCenter(prev => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-  };
+    setMovements(prev => prev.filter(m => m.productId !== id));
+  }, []);
 
   // ===== Cost Centers =====
-  const addCostCenter = (c: Omit<CostCenter, 'id'>) => {
+  const addCostCenter = useCallback(async (c: Omit<CostCenter, 'id'>): Promise<{ ok: boolean; error?: string }> => {
     if (c.type === 'matriz' && costCenters.some(x => x.type === 'matriz')) {
       return { ok: false, error: 'Já existe uma Matriz cadastrada.' };
     }
-    setCostCenters(prev => [...prev, { ...c, id: uid() }]);
+    const { data, error } = await supabase.from('cost_centers').insert({ name: c.name, type: c.type }).select().single();
+    if (error) return { ok: false, error: error.message };
+    setCostCenters(prev => [...prev, { id: data.id, name: data.name, type: data.type as 'matriz' | 'filial' }]);
     return { ok: true };
-  };
+  }, [costCenters]);
 
-  const updateCostCenter = (c: CostCenter) => {
+  const updateCostCenter = useCallback(async (c: CostCenter): Promise<{ ok: boolean; error?: string }> => {
     if (c.type === 'matriz' && costCenters.some(x => x.type === 'matriz' && x.id !== c.id)) {
       return { ok: false, error: 'Já existe uma Matriz cadastrada.' };
     }
+    const { error } = await supabase.from('cost_centers').update({ name: c.name, type: c.type }).eq('id', c.id);
+    if (error) return { ok: false, error: error.message };
     setCostCenters(prev => prev.map(x => x.id === c.id ? c : x));
     return { ok: true };
-  };
+  }, [costCenters]);
 
-  const deleteCostCenter = (id: string) => {
+  const deleteCostCenter = useCallback(async (id: string): Promise<{ ok: boolean; error?: string }> => {
     const center = costCenters.find(c => c.id === id);
     if (!center) return { ok: false, error: 'Centro de custo não encontrado.' };
     const hasStock = Object.values(stockByCenter).some(byC => (byC[id] || 0) > 0);
     if (hasStock) return { ok: false, error: 'Existe estoque neste centro de custo. Zere antes de excluir.' };
+    const { error } = await supabase.from('cost_centers').delete().eq('id', id);
+    if (error) return { ok: false, error: error.message };
     setCostCenters(prev => prev.filter(c => c.id !== id));
     if (activeCenterId === id) setActiveCenterId(null);
     return { ok: true };
-  };
+  }, [costCenters, stockByCenter, activeCenterId]);
 
   // ===== Categories =====
-  const addCategory = (c: Omit<Category, 'id'>) => {
+  const addCategory = useCallback(async (c: Omit<Category, 'id'>): Promise<{ ok: boolean; error?: string }> => {
     const name = c.name.trim();
     if (!name) return { ok: false, error: 'Nome obrigatório.' };
     if (categories.some(x => x.name.toLowerCase() === name.toLowerCase())) {
       return { ok: false, error: 'Já existe uma categoria com esse nome.' };
     }
-    setCategories(prev => [...prev, { ...c, name, id: uid() }]);
+    const { data, error } = await supabase.from('categories').insert({ name, active: c.active }).select().single();
+    if (error) return { ok: false, error: error.message };
+    setCategories(prev => [...prev, { id: data.id, name: data.name, active: data.active }]);
     return { ok: true };
-  };
+  }, [categories]);
 
-  const updateCategory = (c: Category) => {
+  const updateCategory = useCallback(async (c: Category): Promise<{ ok: boolean; error?: string }> => {
     const name = c.name.trim();
     if (!name) return { ok: false, error: 'Nome obrigatório.' };
     if (categories.some(x => x.id !== c.id && x.name.toLowerCase() === name.toLowerCase())) {
       return { ok: false, error: 'Já existe uma categoria com esse nome.' };
     }
     const old = categories.find(x => x.id === c.id);
+    const { error } = await supabase.from('categories').update({ name, active: c.active }).eq('id', c.id);
+    if (error) return { ok: false, error: error.message };
     setCategories(prev => prev.map(x => x.id === c.id ? { ...c, name } : x));
+    // Update products referencing old category name
     if (old && old.name !== name) {
+      await supabase.from('products').update({ category: name }).eq('category', old.name);
       setProducts(prev => prev.map(p => p.category === old.name ? { ...p, category: name } : p));
     }
     return { ok: true };
-  };
+  }, [categories]);
 
-  const deleteCategory = (id: string) => {
+  const deleteCategory = useCallback(async (id: string): Promise<{ ok: boolean; error?: string }> => {
     const cat = categories.find(c => c.id === id);
     if (!cat) return { ok: false, error: 'Categoria não encontrada.' };
     const inUse = products.some(p => p.category === cat.name);
     if (inUse) return { ok: false, error: 'Categoria vinculada a produtos. Inative-a em vez de excluir.' };
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (error) return { ok: false, error: error.message };
     setCategories(prev => prev.filter(c => c.id !== id));
     return { ok: true };
-  };
+  }, [categories, products]);
 
   // ===== Stock helpers =====
-  const getStock = (productId: string, costCenterId: string | null): number => {
+  const getStock = useCallback((productId: string, costCenterId: string | null): number => {
     const byCenter = stockByCenter[productId] || {};
     if (!costCenterId || (matriz && costCenterId === matriz.id)) {
       return filiais.reduce((sum, f) => sum + (byCenter[f.id] || 0), 0);
     }
     return byCenter[costCenterId] || 0;
-  };
+  }, [stockByCenter, matriz, filiais]);
 
-  const isFilial = (id: string) => filiais.some(f => f.id === id);
-
-  const adjust = (productId: string, costCenterId: string, delta: number) => {
-    setStockByCenter(prev => {
-      const productMap = { ...(prev[productId] || {}) };
-      productMap[costCenterId] = (productMap[costCenterId] || 0) + delta;
-      return { ...prev, [productId]: productMap };
-    });
-  };
+  const isFilial = useCallback((id: string) => filiais.some(f => f.id === id), [filiais]);
 
   // ===== Movements =====
-  const addStockIn = (productId: string, quantity: number, reason: string, costCenterId: string, date?: string): boolean => {
-    if (!isFilial(costCenterId)) return false;
-    adjust(productId, costCenterId, quantity);
-    setMovements(prev => [...prev, {
-      id: uid(), productId, type: 'entrada', quantity, reason,
-      date: date || new Date().toISOString(), costCenterId,
-    }]);
-    return true;
-  };
+  const insertMovement = useCallback(async (m: Omit<StockMovement, 'id'>): Promise<StockMovement | null> => {
+    const { data, error } = await supabase.from('stock_movements').insert({
+      product_id: m.productId, type: m.type, quantity: m.quantity,
+      reason: m.reason, date: m.date, cost_center_id: m.costCenterId,
+      destination_center_id: m.destinationCenterId || null,
+    }).select().single();
+    if (error) { console.error(error); return null; }
+    const mov: StockMovement = {
+      id: data.id, productId: data.product_id, type: data.type as StockMovement['type'],
+      quantity: data.quantity, reason: data.reason, date: data.date,
+      costCenterId: data.cost_center_id, destinationCenterId: data.destination_center_id || undefined,
+    };
+    setMovements(prev => [...prev, mov]);
+    return mov;
+  }, []);
 
-  const addStockOut = (productId: string, quantity: number, reason: string, costCenterId: string, date?: string): boolean => {
+  const addStockIn = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string): Promise<boolean> => {
+    if (!isFilial(costCenterId)) return false;
+    const mov = await insertMovement({
+      productId, type: 'entrada', quantity, reason,
+      date: date || new Date().toISOString(), costCenterId,
+    });
+    return !!mov;
+  }, [isFilial, insertMovement]);
+
+  const addStockOut = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string): Promise<boolean> => {
     if (!isFilial(costCenterId)) return false;
     const current = (stockByCenter[productId]?.[costCenterId]) || 0;
     if (current < quantity) return false;
-    adjust(productId, costCenterId, -quantity);
-    setMovements(prev => [...prev, {
-      id: uid(), productId, type: 'saida', quantity, reason,
+    const mov = await insertMovement({
+      productId, type: 'saida', quantity, reason,
       date: date || new Date().toISOString(), costCenterId,
-    }]);
-    return true;
-  };
+    });
+    return !!mov;
+  }, [isFilial, stockByCenter, insertMovement]);
 
-  const transferStock = (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string): boolean => {
+  const transferStock = useCallback(async (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string): Promise<boolean> => {
     if (!isFilial(fromId) || !isFilial(toId) || fromId === toId) return false;
     const current = (stockByCenter[productId]?.[fromId]) || 0;
     if (current < quantity) return false;
-    setStockByCenter(prev => {
-      const productMap = { ...(prev[productId] || {}) };
-      productMap[fromId] = (productMap[fromId] || 0) - quantity;
-      productMap[toId] = (productMap[toId] || 0) + quantity;
-      return { ...prev, [productId]: productMap };
-    });
-    setMovements(prev => [...prev, {
-      id: uid(), productId, type: 'transferencia', quantity,
+    const mov = await insertMovement({
+      productId, type: 'transferencia', quantity,
       reason: reason || 'Transferência entre unidades',
       date: date || new Date().toISOString(),
       costCenterId: fromId, destinationCenterId: toId,
-    }]);
-    return true;
-  };
+    });
+    return !!mov;
+  }, [isFilial, stockByCenter, insertMovement]);
 
   return (
     <AppContext.Provider value={{
-      products, movements, costCenters, categories, stockByCenter,
+      products, movements, costCenters, categories, stockByCenter, loading,
       activeCenterId, setActiveCenterId,
       addProduct, updateProduct, deleteProduct,
       addCostCenter, updateCostCenter, deleteCostCenter,

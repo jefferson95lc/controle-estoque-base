@@ -28,12 +28,12 @@ export default function ProductsPage() {
     p.sku.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name || !form.sku) return;
     if (editing) {
-      updateProduct({ ...editing, ...form });
+      await updateProduct({ ...editing, ...form });
     } else {
-      addProduct(form);
+      await addProduct(form);
     }
     setOpen(false);
     setEditing(null);

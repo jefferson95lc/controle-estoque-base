@@ -14,6 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cost_centers: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          min_stock: number
+          name: string
+          sku: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          min_stock?: number
+          name: string
+          sku: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          min_stock?: number
+          name?: string
+          sku?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           active: boolean
@@ -37,6 +118,64 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          cost_center_id: string
+          created_at: string
+          date: string
+          destination_center_id: string | null
+          id: string
+          product_id: string
+          quantity: number
+          reason: string
+          type: string
+        }
+        Insert: {
+          cost_center_id: string
+          created_at?: string
+          date?: string
+          destination_center_id?: string | null
+          id?: string
+          product_id: string
+          quantity: number
+          reason?: string
+          type: string
+        }
+        Update: {
+          cost_center_id?: string
+          created_at?: string
+          date?: string
+          destination_center_id?: string | null
+          id?: string
+          product_id?: string
+          quantity?: number
+          reason?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_destination_center_id_fkey"
+            columns: ["destination_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

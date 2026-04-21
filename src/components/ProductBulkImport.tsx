@@ -86,13 +86,13 @@ export function ProductBulkImport() {
   const validRows = parsed.filter(r => r.errors.length === 0);
   const invalidRows = parsed.filter(r => r.errors.length > 0);
 
-  const handleImport = () => {
-    validRows.forEach(r => {
+  const handleImport = async () => {
+    for (const r of validRows) {
       const p: Omit<Product, 'id'> = {
         name: r.name, sku: r.sku, category: r.category, unit: r.unit, minStock: r.minStock,
       };
-      addProduct(p);
-    });
+      await addProduct(p);
+    }
     toast.success(`${validRows.length} produto(s) importado(s) com sucesso.`);
     reset();
     setOpen(false);
