@@ -25,14 +25,14 @@ export default function CategoriesPage() {
 
   const filtered = categories.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) {
       toast({ title: 'Atenção', description: 'Informe o nome.', variant: 'destructive' });
       return;
     }
     const result = editing
-      ? updateCategory({ ...editing, ...form })
-      : addCategory(form);
+      ? await updateCategory({ ...editing, ...form })
+      : await addCategory(form);
     if (!result.ok) {
       toast({ title: 'Erro', description: result.error, variant: 'destructive' });
       return;
@@ -48,8 +48,8 @@ export default function CategoriesPage() {
     setOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    const result = deleteCategory(id);
+  const handleDelete = async (id: string) => {
+    const result = await deleteCategory(id);
     if (!result.ok) {
       toast({ title: 'Erro', description: result.error, variant: 'destructive' });
     } else {

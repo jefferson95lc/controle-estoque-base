@@ -22,14 +22,14 @@ export default function CostCentersPage() {
 
   const reset = () => { setForm(empty); setEditing(null); };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) {
       toast({ title: 'Atenção', description: 'Informe o nome.', variant: 'destructive' });
       return;
     }
     const result = editing
-      ? updateCostCenter({ ...editing, ...form })
-      : addCostCenter(form);
+      ? await updateCostCenter({ ...editing, ...form })
+      : await addCostCenter(form);
     if (!result.ok) {
       toast({ title: 'Erro', description: result.error, variant: 'destructive' });
       return;
@@ -45,8 +45,8 @@ export default function CostCentersPage() {
     setOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    const result = deleteCostCenter(id);
+  const handleDelete = async (id: string) => {
+    const result = await deleteCostCenter(id);
     if (!result.ok) {
       toast({ title: 'Erro', description: result.error, variant: 'destructive' });
     } else {
