@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import logo from "@/assets/logo.png";
 
 export default function AuthPage() {
   const { user, signIn, loading } = useAuth();
@@ -44,9 +45,9 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm p-6 space-y-4">
-        <div className="text-center">
-          <h1 className="font-heading text-2xl font-bold">📦 GestãoPro</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+        <div className="text-center space-y-2">
+          <img src={logo} alt="Odontoart Stock Pro" className="h-14 w-auto mx-auto" />
+          <p className="text-sm text-muted-foreground">
             {mode === "signin" ? "Entre com sua conta" : "Crie sua conta"}
           </p>
         </div>
