@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { Package, FileSpreadsheet, Warehouse, BarChart3, LayoutDashboard, Building2, Tags, Users, LogOut } from 'lucide-react';
+import logo from '@/assets/logo.png';
 import CostCenterSelector from './CostCenterSelector';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -22,10 +23,8 @@ export default function AppLayout() {
   return (
     <div className="flex h-screen overflow-hidden">
       <aside className="w-60 shrink-0 bg-sidebar text-sidebar-foreground flex flex-col">
-        <div className="p-5 border-b border-sidebar-border">
-          <h1 className="font-heading text-lg font-bold text-sidebar-primary-foreground tracking-tight">
-            📦 GestãoPro
-          </h1>
+        <div className="p-4 border-b border-sidebar-border flex items-center gap-3">
+          <img src={logo} alt="Odontoart Stock Pro" className="h-10 w-auto" />
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {links.map(({ to, icon: Icon, label }) => (
