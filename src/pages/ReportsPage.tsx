@@ -51,6 +51,9 @@ export default function ReportsPage() {
             </SelectContent>
           </Select>
         </div>
+        <Button onClick={exportToExcel} disabled={filteredMovements.length === 0} className="self-end">
+          <Download className="h-4 w-4 mr-2" /> Exportar Excel
+        </Button>
       </div>
 
       <Card>
