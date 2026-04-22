@@ -45,8 +45,8 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm p-6 space-y-4">
-        <div className="text-center space-y-2">
-          <img src={logo} alt="Odontoart Stock Pro" className="h-14 w-auto mx-auto" />
+        <div className="text-center space-y-3">
+          <img src={logo} alt="Odontoart Stock Pro" className="h-20 w-auto mx-auto" />
           <p className="text-sm text-muted-foreground">
             {mode === "signin" ? "Entre com sua conta" : "Crie sua conta"}
           </p>
