@@ -32,6 +32,24 @@ export default function ReportsPage() {
   const getProductName = (id: string) => products.find(p => p.id === id)?.name || '—';
   const getCenterName = (id?: string) => id ? (costCenters.find(c => c.id === id)?.name || '—') : '—';
 
+  const exportToExcel = () => {
+    const data = filteredMovements.map(m => ({
+      'Data': format(parseISO(m.date), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
+      'Produto': getProductName(m.productId),
+      'Tipo': m.type === 'entrada' ? 'Entrada' : m.type === 'saida' ? 'Saída' : 'Transferência',
+      'Centro de Custo': m.type === 'transferencia'
+        ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
+        : getCenterName(m.costCenterId),
+      'Quantidade': m.quantity,
+      'Motivo': m.reason,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{ wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 10 }, { wch: 25 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
+    XLSX.writeFile(wb, `relatorio_movimentacoes_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="font-heading text-2xl font-bold">Relatórios</h1>
