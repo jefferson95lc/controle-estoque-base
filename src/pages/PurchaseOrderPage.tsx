@@ -72,30 +72,68 @@ export default function PurchaseOrderPage() {
       return;
     }
 
-    const rows = items.map(([id, item]) => {
+    const wb = XLSX.utils.book_new();
+    const wsData: (string | number)[][] = [
+      ['Tipo de Material', 'Quantidade Esperada', 'Fornecedor 1', 'Fornecedor 2', 'Fornecedor 3', 'Melhor Preço', 'Melhor Fornecedor', 'Observações'],
+    ];
+
+    items.forEach(([id, item], idx) => {
       const product = products.find(p => p.id === id);
-      return {
-        'Tipo de Material': product?.name || '—',
-        'Quantidade Esperada': item.quantity,
-        'Fornecedor 1': '',
-        'Fornecedor 2': '',
-        'Fornecedor 3': '',
-        'Melhor Preço': '',
-        'Observações': item.obs,
+      wsData.push([
+        product?.name || '—',
+        item.quantity,
+        '', // Fornecedor 1
+        '', // Fornecedor 2
+        '', // Fornecedor 3
+        '', // Melhor Preço (will be formula)
+        '', // Melhor Fornecedor (will be formula)
+        item.obs,
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Add formulas for each data row
+    items.forEach((_entry, idx) => {
+      const row = idx + 2; // Excel row (1-indexed, +1 for header)
+      const c = `C${row}`, d = `D${row}`, e = `E${row}`;
+
+      // Melhor Preço: MIN dos fornecedores preenchidos (ignora zeros/vazios)
+      ws[`F${row}`] = {
+        t: 'n',
+        f: `IF(COUNTIF(${c}:${e},">0")=0,"",MIN(IF(${c}>0,${c},9999999),IF(${d}>0,${d},9999999),IF(${e}>0,${e},9999999)))`,
+      };
+
+      // Melhor Fornecedor: nome da coluna com menor preço
+      ws[`G${row}`] = {
+        t: 's',
+        f: `IF(F${row}="","",IF(F${row}=${c},"Fornecedor 1",IF(F${row}=${d},"Fornecedor 2",IF(F${row}=${e},"Fornecedor 3",""))))`,
       };
     });
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 25 }];
+    // Column widths
+    ws['!cols'] = [
+      { wch: 35 }, // Tipo de Material
+      { wch: 20 }, // Qtd Esperada
+      { wch: 18 }, // Fornecedor 1
+      { wch: 18 }, // Fornecedor 2
+      { wch: 18 }, // Fornecedor 3
+      { wch: 16 }, // Melhor Preço
+      { wch: 20 }, // Melhor Fornecedor
+      { wch: 25 }, // Observações
+    ];
 
-    const wb = XLSX.utils.book_new();
+    // Set ref to include new column
+    const lastRow = items.length + 1;
+    ws['!ref'] = `A1:H${lastRow}`;
+
     XLSX.utils.book_append_sheet(wb, ws, 'Ordem de Compra');
 
     const dateStr = format(new Date(), 'dd-MM-yyyy');
     const scopeSlug = scopeLabel.replace(/\s+/g, '_').replace(/[^\w-]/g, '');
     XLSX.writeFile(wb, `Ordem_de_Compra_${scopeSlug}_${dateStr}.xlsx`);
 
-    toast({ title: 'Exportado!', description: `Arquivo gerado para ${scopeLabel}.` });
+    toast({ title: 'Exportado!', description: `Arquivo gerado com fórmulas de cotação para ${scopeLabel}.` });
   };
 
   const selectedCount = Object.keys(selected).length;
