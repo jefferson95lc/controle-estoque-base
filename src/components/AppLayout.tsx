@@ -23,8 +23,8 @@ export default function AppLayout() {
   return (
     <div className="flex h-screen overflow-hidden">
       <aside className="w-60 shrink-0 bg-sidebar text-sidebar-foreground flex flex-col">
-        <div className="p-4 border-b border-sidebar-border flex items-center gap-3">
-          <img src={logo} alt="Odontoart Stock Pro" className="h-10 w-auto" />
+        <div className="p-4 border-b border-sidebar-border flex items-center justify-center">
+          <img src={logo} alt="Odontoart Stock Pro" className="h-14 w-auto" />
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {links.map(({ to, icon: Icon, label }) => (
