@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/store/AppContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,12 +10,27 @@ import { format, isAfter, isBefore, startOfDay, endOfDay, parseISO } from 'date-
 import { ptBR } from 'date-fns/locale';
 import { Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function ReportsPage() {
   const { movements, products, costCenters, matrizId } = useApp();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [centerFilter, setCenterFilter] = useState<string>('all'); // 'all' | 'consolidado' | center.id
+  const [centerFilter, setCenterFilter] = useState<string>('all');
+  const [userMap, setUserMap] = useState<Record<string, string>>({});
+
+  // Load user emails for display
+  useEffect(() => {
+    async function loadUsers() {
+      const { data } = await supabase.from('profiles').select('id, email');
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach(p => { map[p.id] = p.email; });
+        setUserMap(map);
+      }
+    }
+    loadUsers();
+  }, []);
 
   const filteredMovements = useMemo(() => {
     return movements.filter(m => {
@@ -31,6 +46,7 @@ export default function ReportsPage() {
 
   const getProductName = (id: string) => products.find(p => p.id === id)?.name || '—';
   const getCenterName = (id?: string) => id ? (costCenters.find(c => c.id === id)?.name || '—') : '—';
+  const getUserEmail = (userId?: string) => userId ? (userMap[userId] || '—') : '—';
 
   const exportToExcel = () => {
     const data = filteredMovements.map(m => ({
@@ -42,9 +58,10 @@ export default function ReportsPage() {
         : getCenterName(m.costCenterId),
       'Quantidade': m.quantity,
       'Motivo': m.reason,
+      'Usuário': getUserEmail(m.userId),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{ wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 10 }, { wch: 25 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 10 }, { wch: 25 }, { wch: 30 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
     XLSX.writeFile(wb, `relatorio_movimentacoes_${format(new Date(), 'yyyyMMdd')}.xlsx`);
@@ -85,6 +102,7 @@ export default function ReportsPage() {
                 <th className="text-left p-3 font-medium">Centro de Custo</th>
                 <th className="text-center p-3 font-medium">Qtd</th>
                 <th className="text-left p-3 font-medium">Motivo</th>
+                <th className="text-left p-3 font-medium">Usuário</th>
               </tr>
             </thead>
             <tbody>
@@ -104,10 +122,11 @@ export default function ReportsPage() {
                   </td>
                   <td className="p-3 text-center font-semibold">{m.quantity}</td>
                   <td className="p-3 text-muted-foreground">{m.reason}</td>
+                  <td className="p-3 text-muted-foreground">{getUserEmail(m.userId)}</td>
                 </tr>
               ))}
               {filteredMovements.length === 0 && (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
               )}
             </tbody>
           </table>
