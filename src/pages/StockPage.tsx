@@ -23,6 +23,7 @@ export default function StockPage() {
     products, filiais, matrizId, activeCenterId, setActiveCenterId,
     addStockIn, addStockOut, transferStock, getStock, costCenters,
   } = useApp();
+  const { isMaster } = useAuth();
   const { toast } = useToast();
 
   const [outOpen, setOutOpen] = useState(false);
@@ -113,7 +114,7 @@ export default function StockPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <StockBulkImport />
+          {isMaster && <StockBulkImport />}
           <Button onClick={openIn}><Plus size={16} className="mr-2" />Entrada</Button>
           <Button variant="outline" onClick={openOut}><Minus size={16} className="mr-2" />Saída</Button>
           <Button variant="outline" onClick={openTransfer}><ArrowLeftRight size={16} className="mr-2" />Transferir</Button>
