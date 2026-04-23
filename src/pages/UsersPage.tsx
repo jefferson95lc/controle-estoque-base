@@ -7,9 +7,11 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, Plus, KeyRound } from "lucide-react";
+import { Pencil, Trash2, Plus, KeyRound, Building2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useApp } from "@/store/AppContext";
 
 interface UserRow {
   id: string;
@@ -20,12 +22,18 @@ interface UserRow {
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
+  const { costCenters } = useApp();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<UserRow | null>(null);
   const [resetting, setResetting] = useState<UserRow | null>(null);
+  const [centerUser, setCenterUser] = useState<UserRow | null>(null);
+  const [userCenterIds, setUserCenterIds] = useState<string[]>([]);
+  const [savingCenters, setSavingCenters] = useState(false);
+
+  const filiais = costCenters.filter(c => c.type === "filial");
 
   const load = async () => {
     setLoading(true);
@@ -40,6 +48,33 @@ export default function UsersPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  const openCenterDialog = async (u: UserRow) => {
+    setCenterUser(u);
+    const { data } = await supabase.from("user_cost_centers").select("cost_center_id").eq("user_id", u.id);
+    setUserCenterIds((data ?? []).map(r => r.cost_center_id));
+  };
+
+  const saveCenters = async () => {
+    if (!centerUser) return;
+    setSavingCenters(true);
+    // Delete existing
+    await supabase.from("user_cost_centers").delete().eq("user_id", centerUser.id);
+    // Insert new
+    if (userCenterIds.length > 0) {
+      const rows = userCenterIds.map(cid => ({ user_id: centerUser.id, cost_center_id: cid }));
+      await supabase.from("user_cost_centers").insert(rows);
+    }
+    toast({ title: "Centros de custo atualizados" });
+    setSavingCenters(false);
+    setCenterUser(null);
+  };
+
+  const toggleCenter = (centerId: string) => {
+    setUserCenterIds(prev =>
+      prev.includes(centerId) ? prev.filter(id => id !== centerId) : [...prev, centerId]
+    );
+  };
 
   const callAdmin = async (payload: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke("admin-users", { body: payload });
@@ -125,6 +160,9 @@ export default function UsersPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right space-x-1">
+                  <Button size="icon" variant="ghost" onClick={() => openCenterDialog(u)} title="Centros de custo">
+                    <Building2 size={16} />
+                  </Button>
                   <Button size="icon" variant="ghost" onClick={() => setEditing(u)}><Pencil size={16} /></Button>
                   <Button size="icon" variant="ghost" onClick={() => setResetting(u)}><KeyRound size={16} /></Button>
                   <Button size="icon" variant="ghost" onClick={() => onDelete(u.id)} disabled={u.id === currentUser?.id}>
@@ -139,6 +177,35 @@ export default function UsersPage() {
 
       {editing && <EditDialog user={editing} onClose={() => setEditing(null)} onSubmit={onUpdate} />}
       {resetting && <ResetDialog user={resetting} onClose={() => setResetting(null)} onSubmit={onResetPassword} />}
+
+      {/* Dialog de centros de custo */}
+      <Dialog open={!!centerUser} onOpenChange={(v) => { if (!v) setCenterUser(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-heading">Centros de custo — {centerUser?.email}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Selecione quais filiais este usuário pode visualizar:</p>
+          <div className="space-y-3 max-h-60 overflow-y-auto">
+            {filiais.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma filial cadastrada.</p>
+            ) : filiais.map(f => (
+              <label key={f.id} className="flex items-center gap-3 cursor-pointer p-2 rounded-md hover:bg-muted/50">
+                <Checkbox
+                  checked={userCenterIds.includes(f.id)}
+                  onCheckedChange={() => toggleCenter(f.id)}
+                />
+                <span className="text-sm">{f.name}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCenterUser(null)}>Cancelar</Button>
+            <Button onClick={saveCenters} disabled={savingCenters}>
+              {savingCenters ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
