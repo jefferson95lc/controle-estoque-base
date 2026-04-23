@@ -31,4 +31,5 @@ export interface StockMovement {
   date: string;
   costCenterId: string;          // origin (entrada/saida/transferencia)
   destinationCenterId?: string;  // only for transferencia
+  userId?: string;               // who performed the movement
 }

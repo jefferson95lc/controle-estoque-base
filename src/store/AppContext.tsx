@@ -121,6 +121,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         id: r.id, productId: r.product_id, type: r.type as StockMovement['type'],
         quantity: r.quantity, reason: r.reason, date: r.date,
         costCenterId: r.cost_center_id, destinationCenterId: r.destination_center_id || undefined,
+        userId: (r as any).user_id || undefined,
       })));
       setLoading(false);
     }
@@ -255,16 +256,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ===== Movements =====
   const insertMovement = useCallback(async (m: Omit<StockMovement, 'id'>): Promise<StockMovement | null> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const currentUserId = session?.user?.id || null;
     const { data, error } = await supabase.from('stock_movements').insert({
       product_id: m.productId, type: m.type, quantity: m.quantity,
       reason: m.reason, date: m.date, cost_center_id: m.costCenterId,
       destination_center_id: m.destinationCenterId || null,
+      user_id: currentUserId,
     }).select().single();
     if (error) { console.error(error); return null; }
     const mov: StockMovement = {
       id: data.id, productId: data.product_id, type: data.type as StockMovement['type'],
       quantity: data.quantity, reason: data.reason, date: data.date,
       costCenterId: data.cost_center_id, destinationCenterId: data.destination_center_id || undefined,
+      userId: data.user_id || undefined,
     };
     setMovements(prev => [...prev, mov]);
     return mov;
