@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/store/AppContext';
 import { Product } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ const emptyProduct: Omit<Product, 'id'> = { name: '', sku: '', category: '', uni
 
 export default function ProductsPage() {
   const { products, addProduct, updateProduct, deleteProduct, getStock, activeCenterId, categories } = useApp();
+  const { isMaster } = useAuth();
   const activeCategories = categories.filter(c => c.active);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
@@ -51,7 +53,7 @@ export default function ProductsPage() {
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Produtos</h1>
         <div className="flex items-center gap-2">
-        <ProductBulkImport />
+        {isMaster && <ProductBulkImport />}
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(null); setForm(emptyProduct); } }}>
           <DialogTrigger asChild>
             <Button><Plus size={16} className="mr-2" />Novo Produto</Button>
