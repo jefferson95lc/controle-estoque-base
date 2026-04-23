@@ -177,6 +177,35 @@ export type Database = {
           },
         ]
       }
+      user_cost_centers: {
+        Row: {
+          cost_center_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          cost_center_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          cost_center_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_cost_centers_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
