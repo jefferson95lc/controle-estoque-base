@@ -80,6 +80,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const userId = session.user.id;
+
+      // Check if user is master
+      const { data: isMasterData } = await supabase.rpc("has_role", {
+        _user_id: userId, _role: "master",
+      });
+      const userIsMaster = !!isMasterData;
+
+      // Load user's allowed cost centers (for non-master)
+      let allowedCenterIds: string[] | null = null;
+      if (!userIsMaster) {
+        const { data: ucData } = await supabase.from('user_cost_centers').select('cost_center_id').eq('user_id', userId);
+        if (ucData && ucData.length > 0) {
+          allowedCenterIds = ucData.map(r => r.cost_center_id);
+        }
+      }
+
       const [catRes, ccRes, prodRes, movRes] = await Promise.all([
         supabase.from('categories').select('*').order('name'),
         supabase.from('cost_centers').select('*').order('name'),
@@ -89,7 +106,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
 
       if (catRes.data) setCategories(catRes.data.map(r => ({ id: r.id, name: r.name, active: r.active })));
-      if (ccRes.data) setCostCenters(ccRes.data.map(r => ({ id: r.id, name: r.name, type: r.type as 'matriz' | 'filial' })));
+      
+      if (ccRes.data) {
+        let allCenters = ccRes.data.map(r => ({ id: r.id, name: r.name, type: r.type as 'matriz' | 'filial' }));
+        // Filter filiais for non-master users with assigned centers
+        if (allowedCenterIds) {
+          allCenters = allCenters.filter(c => c.type === 'matriz' || allowedCenterIds!.includes(c.id));
+        }
+        setCostCenters(allCenters);
+      }
+
       if (prodRes.data) setProducts(prodRes.data.map(r => ({ id: r.id, name: r.name, sku: r.sku, category: r.category, unit: r.unit, minStock: r.min_stock })));
       if (movRes.data) setMovements(movRes.data.map(r => ({
         id: r.id, productId: r.product_id, type: r.type as StockMovement['type'],
