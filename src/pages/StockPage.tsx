@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Minus, AlertTriangle, ArrowLeftRight, Building2 } from 'lucide-react';
 import { StockBulkImport } from '@/components/StockBulkImport';
+import { ProductCombobox } from '@/components/ProductCombobox';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -143,10 +144,11 @@ export default function StockPage() {
             </div>
             <div>
               <Label>Produto</Label>
-              <Select value={productId} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}{centerId ? ` (${getStock(p.id, centerId)} ${p.unit})` : ''}</SelectItem>)}</SelectContent>
-              </Select>
+              <ProductCombobox
+                products={products.map(p => ({ id: p.id, label: `${p.name}${centerId ? ` (${getStock(p.id, centerId)} ${p.unit})` : ''}` }))}
+                value={productId}
+                onValueChange={setProductId}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Quantidade</Label><Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} /></div>
@@ -178,10 +180,11 @@ export default function StockPage() {
             </div>
             <div>
               <Label>Produto</Label>
-              <Select value={productId} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}{centerId ? ` (${getStock(p.id, centerId)} ${p.unit})` : ''}</SelectItem>)}</SelectContent>
-              </Select>
+              <ProductCombobox
+                products={products.map(p => ({ id: p.id, label: `${p.name}${centerId ? ` (${getStock(p.id, centerId)} ${p.unit})` : ''}` }))}
+                value={productId}
+                onValueChange={setProductId}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Quantidade</Label><Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} /></div>
@@ -222,10 +225,11 @@ export default function StockPage() {
             </div>
             <div>
               <Label>Produto</Label>
-              <Select value={productId} onValueChange={setProductId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}{centerId ? ` (disp: ${getStock(p.id, centerId)} ${p.unit})` : ''}</SelectItem>)}</SelectContent>
-              </Select>
+              <ProductCombobox
+                products={products.map(p => ({ id: p.id, label: `${p.name}${centerId ? ` (disp: ${getStock(p.id, centerId)} ${p.unit})` : ''}` }))}
+                value={productId}
+                onValueChange={setProductId}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Quantidade</Label><Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} /></div>
