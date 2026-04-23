@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/store/AppContext';
 import { Product } from '@/types';
 import { Button } from '@/components/ui/button';

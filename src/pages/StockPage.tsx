@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/store/AppContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
