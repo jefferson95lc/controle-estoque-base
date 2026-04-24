@@ -20,11 +20,14 @@ interface ParsedRow {
 }
 
 export function ProductBulkImport() {
-  const { products, addProduct, categories } = useApp();
+  const { products, addProduct, categories, activeCenterId, matrizId, costCenters, setProductMinStockForCenter } = useApp();
   const [open, setOpen] = useState(false);
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const filialSelected = activeCenterId && activeCenterId !== matrizId ? activeCenterId : null;
+  const filialName = filialSelected ? costCenters.find(c => c.id === filialSelected)?.name : null;
 
   const activeCategoryNames = categories.filter(c => c.active).map(c => c.name.toLowerCase());
 
