@@ -266,6 +266,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return byCenter[costCenterId] || 0;
   }, [stockByCenter, matriz, filiais]);
 
+  // ===== Min stock per center =====
+  const getMinStock = useCallback((productId: string, costCenterId: string | null): number => {
+    const product = products.find(p => p.id === productId);
+    const generalMin = product?.minStock || 0;
+    if (!costCenterId || (matriz && costCenterId === matriz.id)) {
+      // Consolidated: sum of per-filial mins (fallback to general for those without override)
+      const byCenter = minStockByCenter[productId] || {};
+      return filiais.reduce((sum, f) => sum + (byCenter[f.id] ?? generalMin), 0);
+    }
+    const specific = minStockByCenter[productId]?.[costCenterId];
+    return specific ?? generalMin;
+  }, [minStockByCenter, products, matriz, filiais]);
+
+  const setProductMinStockForCenter = useCallback(async (productId: string, costCenterId: string, minStock: number | null): Promise<boolean> => {
+    if (minStock === null) {
+      const { error } = await supabase.from('product_min_stock').delete().eq('product_id', productId).eq('cost_center_id', costCenterId);
+      if (error) { console.error(error); return false; }
+      setMinStockByCenter(prev => {
+        const next = { ...prev };
+        if (next[productId]) {
+          const inner = { ...next[productId] };
+          delete inner[costCenterId];
+          next[productId] = inner;
+        }
+        return next;
+      });
+      return true;
+    }
+    const { error } = await supabase.from('product_min_stock').upsert({
+      product_id: productId, cost_center_id: costCenterId, min_stock: Math.max(0, Math.floor(minStock)),
+    }, { onConflict: 'product_id,cost_center_id' });
+    if (error) { console.error(error); return false; }
+    setMinStockByCenter(prev => ({
+      ...prev,
+      [productId]: { ...(prev[productId] || {}), [costCenterId]: Math.max(0, Math.floor(minStock)) },
+    }));
+    return true;
+  }, []);
+
   const isFilial = useCallback((id: string) => filiais.some(f => f.id === id), [filiais]);
 
   // ===== Movements =====
