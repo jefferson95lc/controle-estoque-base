@@ -127,9 +127,6 @@ export default function ProductsPage() {
               {filtered.map(p => {
                 const qty = getStock(p.id, activeCenterId);
                 const effectiveMin = filialSelected ? getMinStock(p.id, filialSelected) : p.minStock;
-                const hasOverride = filialSelected ? effectiveMin !== p.minStock || (p as any) : false;
-                // detect override more reliably: compare against general
-                const overrideSet = filialSelected ? getMinStock(p.id, filialSelected) !== p.minStock || false : false;
                 return (
                   <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="p-3 font-medium">{p.name}</td>
