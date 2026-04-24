@@ -370,6 +370,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addCategory, updateCategory, deleteCategory,
       addStockIn, addStockOut, transferStock,
       getStock,
+      getMinStock,
+      setProductMinStockForCenter,
       matrizId: matriz?.id || null,
       filiais,
     }}>
