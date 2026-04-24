@@ -65,6 +65,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [minStockByCenter, setMinStockByCenter] = useState<MinStockMap>({});
   const [activeCenterId, setActiveCenterId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
