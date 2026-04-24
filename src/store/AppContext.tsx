@@ -33,6 +33,8 @@ interface AppState {
   transferStock: (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string) => Promise<boolean>;
 
   getStock: (productId: string, costCenterId: string | null) => number;
+  getMinStock: (productId: string, costCenterId: string | null) => number;
+  setProductMinStockForCenter: (productId: string, costCenterId: string, minStock: number | null) => Promise<boolean>;
   matrizId: string | null;
   filiais: CostCenter[];
 }
