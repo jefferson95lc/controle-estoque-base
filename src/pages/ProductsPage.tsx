@@ -11,15 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProductBulkImport } from '@/components/ProductBulkImport';
+import { MinStockCell } from '@/components/MinStockCell';
 
 const UNITS = ['UN', 'KG', 'CX', 'L', 'M', 'PCT'];
 
 const emptyProduct: Omit<Product, 'id'> = { name: '', sku: '', category: '', unit: 'UN', minStock: 0 };
 
 export default function ProductsPage() {
-  const { products, addProduct, updateProduct, deleteProduct, getStock, activeCenterId, categories } = useApp();
+  const { products, addProduct, updateProduct, deleteProduct, getStock, activeCenterId, categories, costCenters, matrizId, getMinStock, setProductMinStockForCenter } = useApp();
   const { isMaster } = useAuth();
   const activeCategories = categories.filter(c => c.active);
+  const filialSelected = activeCenterId && activeCenterId !== matrizId ? activeCenterId : null;
+  const filialName = filialSelected ? costCenters.find(c => c.id === filialSelected)?.name : null;
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
@@ -113,25 +116,40 @@ export default function ProductsPage() {
                 <th className="text-left p-3 font-medium">Nome</th>
                 <th className="text-left p-3 font-medium">SKU</th>
                 <th className="text-left p-3 font-medium">Categoria</th>
-                <th className="text-center p-3 font-medium">Estoque {activeCenterId ? '(filial)' : '(consolidado)'}</th>
-                <th className="text-center p-3 font-medium">Mín.</th>
+                <th className="text-center p-3 font-medium">Estoque {filialSelected ? `(${filialName})` : '(consolidado)'}</th>
+                <th className="text-center p-3 font-medium">
+                  Mín. {filialSelected ? `(${filialName})` : '(geral)'}
+                </th>
                 <th className="text-right p-3 font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(p => {
                 const qty = getStock(p.id, activeCenterId);
+                const effectiveMin = filialSelected ? getMinStock(p.id, filialSelected) : p.minStock;
                 return (
                   <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="p-3 font-medium">{p.name}</td>
                     <td className="p-3 text-muted-foreground">{p.sku}</td>
                     <td className="p-3"><Badge variant="secondary">{p.category || '—'}</Badge></td>
                     <td className="p-3 text-center">
-                      <span className={qty <= p.minStock ? 'text-destructive font-semibold' : ''}>
+                      <span className={qty <= effectiveMin ? 'text-destructive font-semibold' : ''}>
                         {qty} {p.unit}
                       </span>
                     </td>
-                    <td className="p-3 text-center text-muted-foreground">{p.minStock}</td>
+                    <td className="p-3 text-center">
+                      {filialSelected ? (
+                        <MinStockCell
+                          productId={p.id}
+                          centerId={filialSelected}
+                          generalMin={p.minStock}
+                          effectiveMin={effectiveMin}
+                          onSave={setProductMinStockForCenter}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">{p.minStock}</span>
+                      )}
+                    </td>
                     <td className="p-3 text-right space-x-1">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(p)}><Pencil size={14} /></Button>
                       <Button variant="ghost" size="icon" onClick={() => deleteProduct(p.id)}><Trash2 size={14} /></Button>

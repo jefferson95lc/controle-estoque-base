@@ -2,9 +2,10 @@ import { useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
 import { useApp } from '@/store/AppContext';
 import { Product } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const UNITS = ['UN', 'KG', 'CX', 'L', 'M', 'PCT'];
@@ -17,14 +18,18 @@ interface ParsedRow {
   unit: string;
   minStock: number;
   errors: string[];
+  existingProductId?: string; // when SKU already exists and filial is selected
 }
 
 export function ProductBulkImport() {
-  const { products, addProduct, categories } = useApp();
+  const { products, addProduct, categories, activeCenterId, matrizId, costCenters, setProductMinStockForCenter } = useApp();
   const [open, setOpen] = useState(false);
   const [parsed, setParsed] = useState<ParsedRow[]>([]);
   const [fileName, setFileName] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const filialSelected = activeCenterId && activeCenterId !== matrizId ? activeCenterId : null;
+  const filialName = filialSelected ? costCenters.find(c => c.id === filialSelected)?.name : null;
 
   const activeCategoryNames = categories.filter(c => c.active).map(c => c.name.toLowerCase());
 
@@ -51,7 +56,7 @@ export function ProductBulkImport() {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
 
-        const existingSkus = new Set(products.map(p => p.sku.toLowerCase()));
+        const productsBySku = new Map(products.map(p => [p.sku.toLowerCase(), p]));
         const seenSkus = new Set<string>();
 
         const result: ParsedRow[] = rows.map((r, idx) => {
@@ -62,16 +67,29 @@ export function ProductBulkImport() {
           const unitRaw = String(r.unidade ?? r.unit ?? 'UN').trim().toUpperCase();
           const minStock = Number(r.estoque_minimo ?? r.minStock ?? 0);
 
+          const existing = sku ? productsBySku.get(sku.toLowerCase()) : undefined;
+
           if (!name) errors.push('Nome obrigatório');
           if (!sku) errors.push('SKU obrigatório');
-          if (sku && existingSkus.has(sku.toLowerCase())) errors.push('SKU já existe');
+          if (sku && existing && !filialSelected) errors.push('SKU já existe');
           if (sku && seenSkus.has(sku.toLowerCase())) errors.push('SKU duplicado no arquivo');
           if (sku) seenSkus.add(sku.toLowerCase());
-          if (!UNITS.includes(unitRaw)) errors.push(`Unidade inválida (use: ${UNITS.join(', ')})`);
-          if (category && !activeCategoryNames.includes(category.toLowerCase())) errors.push('Categoria não cadastrada/inativa');
+          if (!filialSelected || !existing) {
+            if (!UNITS.includes(unitRaw)) errors.push(`Unidade inválida (use: ${UNITS.join(', ')})`);
+            if (category && !activeCategoryNames.includes(category.toLowerCase())) errors.push('Categoria não cadastrada/inativa');
+          }
           if (isNaN(minStock) || minStock < 0) errors.push('Estoque mínimo inválido');
 
-          return { row: idx + 2, name, sku, category, unit: unitRaw, minStock: isNaN(minStock) ? 0 : minStock, errors };
+          return {
+            row: idx + 2,
+            name,
+            sku,
+            category,
+            unit: unitRaw,
+            minStock: isNaN(minStock) ? 0 : minStock,
+            errors,
+            existingProductId: existing?.id,
+          };
         });
 
         setParsed(result);
@@ -87,13 +105,43 @@ export function ProductBulkImport() {
   const invalidRows = parsed.filter(r => r.errors.length > 0);
 
   const handleImport = async () => {
+    let createdCount = 0;
+    let minSetCount = 0;
+
+    // 1) Create new products (those without existingProductId)
     for (const r of validRows) {
-      const p: Omit<Product, 'id'> = {
-        name: r.name, sku: r.sku, category: r.category, unit: r.unit, minStock: r.minStock,
-      };
-      await addProduct(p);
+      if (!r.existingProductId) {
+        const p: Omit<Product, 'id'> = {
+          name: r.name, sku: r.sku, category: r.category, unit: r.unit,
+          // When importing under a specific filial, keep general min as 0;
+          // the file's min becomes the per-filial min below.
+          minStock: filialSelected ? 0 : r.minStock,
+        };
+        await addProduct(p);
+        createdCount++;
+      }
     }
-    toast.success(`${validRows.length} produto(s) importado(s) com sucesso.`);
+
+    // 2) When a filial is selected, set per-filial min for ALL valid rows
+    //    (existing products + newly created — resolved via fresh DB lookup by SKU)
+    if (filialSelected) {
+      const skus = validRows.map(r => r.sku);
+      const { data: dbProducts } = await supabase.from('products').select('id, sku').in('sku', skus);
+      const idBySku = new Map((dbProducts || []).map((p: any) => [p.sku.toLowerCase(), p.id as string]));
+      for (const r of validRows) {
+        const productId = r.existingProductId || idBySku.get(r.sku.toLowerCase());
+        if (productId) {
+          const ok = await setProductMinStockForCenter(productId, filialSelected, r.minStock);
+          if (ok) minSetCount++;
+        }
+      }
+      toast.success(
+        `${filialName}: ${createdCount} produto(s) criado(s), ${minSetCount} mínimo(s) definido(s).`
+      );
+    } else {
+      toast.success(`${createdCount} produto(s) importado(s) com sucesso.`);
+    }
+
     reset();
     setOpen(false);
   };
@@ -115,6 +163,19 @@ export function ProductBulkImport() {
         </DialogHeader>
 
         <div className="space-y-4">
+          {filialSelected && (
+            <div className="rounded-lg border border-primary/30 p-3 bg-primary/5 text-sm flex items-start gap-2">
+              <Building2 size={16} className="text-primary mt-0.5" />
+              <div>
+                <p className="font-medium">Importando para a filial: {filialName}</p>
+                <p className="text-muted-foreground text-xs mt-0.5">
+                  A coluna <code className="bg-muted px-1 rounded">estoque_minimo</code> do arquivo será gravada como <strong>mínimo desta filial</strong>.
+                  Produtos novos serão criados com mínimo geral 0. SKUs já existentes terão apenas o mínimo desta filial atualizado.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-lg border border-dashed p-4 bg-muted/30">
             <div className="flex items-start gap-3">
               <FileSpreadsheet className="text-primary mt-0.5" size={20} />
@@ -185,7 +246,13 @@ export function ProductBulkImport() {
                         <td className="p-2">{r.unit}</td>
                         <td className="p-2">
                           {r.errors.length === 0 ? (
-                            <span className="text-emerald-600 dark:text-emerald-400">OK</span>
+                            r.existingProductId && filialSelected ? (
+                              <span className="text-blue-600 dark:text-blue-400">Atualizar mín. ({filialName})</span>
+                            ) : (
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                {filialSelected ? `Criar + mín. ${filialName}` : 'OK'}
+                              </span>
+                            )
                           ) : (
                             <span className="text-destructive">{r.errors.join('; ')}</span>
                           )}

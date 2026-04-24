@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback, useEffect } from 'react';
-import { Product, StockMovement, CostCenter, Category } from '@/types';
+import { Product, StockMovement, CostCenter, Category, ProductMinStock } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
 type StockMap = Record<string, Record<string, number>>; // productId -> costCenterId -> qty
+type MinStockMap = Record<string, Record<string, number>>; // productId -> costCenterId -> minStock
 
 interface AppState {
   products: Product[];
@@ -32,6 +33,8 @@ interface AppState {
   transferStock: (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string) => Promise<boolean>;
 
   getStock: (productId: string, costCenterId: string | null) => number;
+  getMinStock: (productId: string, costCenterId: string | null) => number;
+  setProductMinStockForCenter: (productId: string, costCenterId: string, minStock: number | null) => Promise<boolean>;
   matrizId: string | null;
   filiais: CostCenter[];
 }
@@ -62,6 +65,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [minStockByCenter, setMinStockByCenter] = useState<MinStockMap>({});
   const [activeCenterId, setActiveCenterId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -97,11 +101,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const [catRes, ccRes, prodRes, movRes] = await Promise.all([
+      const [catRes, ccRes, prodRes, movRes, minRes] = await Promise.all([
         supabase.from('categories').select('*').order('name'),
         supabase.from('cost_centers').select('*').order('name'),
         supabase.from('products').select('*').order('name'),
         supabase.from('stock_movements').select('*').order('date', { ascending: true }),
+        supabase.from('product_min_stock').select('*'),
       ]);
       if (cancelled) return;
 
@@ -123,6 +128,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         costCenterId: r.cost_center_id, destinationCenterId: r.destination_center_id || undefined,
         userId: (r as any).user_id || undefined,
       })));
+      if (minRes.data) {
+        const map: MinStockMap = {};
+        for (const r of minRes.data as any[]) {
+          if (!map[r.product_id]) map[r.product_id] = {};
+          map[r.product_id][r.cost_center_id] = r.min_stock;
+        }
+        setMinStockByCenter(map);
+      }
       setLoading(false);
     }
 
@@ -137,6 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setMovements([]);
         setCostCenters([]);
         setCategories([]);
+        setMinStockByCenter({});
         setLoading(false);
       }
     });
@@ -252,6 +266,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return byCenter[costCenterId] || 0;
   }, [stockByCenter, matriz, filiais]);
 
+  // ===== Min stock per center =====
+  const getMinStock = useCallback((productId: string, costCenterId: string | null): number => {
+    const product = products.find(p => p.id === productId);
+    const generalMin = product?.minStock || 0;
+    if (!costCenterId || (matriz && costCenterId === matriz.id)) {
+      // Consolidated: sum of per-filial mins (fallback to general for those without override)
+      const byCenter = minStockByCenter[productId] || {};
+      return filiais.reduce((sum, f) => sum + (byCenter[f.id] ?? generalMin), 0);
+    }
+    const specific = minStockByCenter[productId]?.[costCenterId];
+    return specific ?? generalMin;
+  }, [minStockByCenter, products, matriz, filiais]);
+
+  const setProductMinStockForCenter = useCallback(async (productId: string, costCenterId: string, minStock: number | null): Promise<boolean> => {
+    if (minStock === null) {
+      const { error } = await supabase.from('product_min_stock').delete().eq('product_id', productId).eq('cost_center_id', costCenterId);
+      if (error) { console.error(error); return false; }
+      setMinStockByCenter(prev => {
+        const next = { ...prev };
+        if (next[productId]) {
+          const inner = { ...next[productId] };
+          delete inner[costCenterId];
+          next[productId] = inner;
+        }
+        return next;
+      });
+      return true;
+    }
+    const { error } = await supabase.from('product_min_stock').upsert({
+      product_id: productId, cost_center_id: costCenterId, min_stock: Math.max(0, Math.floor(minStock)),
+    }, { onConflict: 'product_id,cost_center_id' });
+    if (error) { console.error(error); return false; }
+    setMinStockByCenter(prev => ({
+      ...prev,
+      [productId]: { ...(prev[productId] || {}), [costCenterId]: Math.max(0, Math.floor(minStock)) },
+    }));
+    return true;
+  }, []);
+
   const isFilial = useCallback((id: string) => filiais.some(f => f.id === id), [filiais]);
 
   // ===== Movements =====
@@ -317,6 +370,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addCategory, updateCategory, deleteCategory,
       addStockIn, addStockOut, transferStock,
       getStock,
+      getMinStock,
+      setProductMinStockForCenter,
       matrizId: matriz?.id || null,
       filiais,
     }}>

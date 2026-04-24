@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Minus, AlertTriangle, ArrowLeftRight, Building2 } from 'lucide-react';
 import { StockBulkImport } from '@/components/StockBulkImport';
 import { ProductCombobox } from '@/components/ProductCombobox';
+import { MinStockCell } from '@/components/MinStockCell';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -23,6 +24,7 @@ export default function StockPage() {
   const {
     products, filiais, matrizId, activeCenterId, setActiveCenterId,
     addStockIn, addStockOut, transferStock, getStock, costCenters,
+    getMinStock, setProductMinStockForCenter,
   } = useApp();
   const { isMaster } = useAuth();
   const { toast } = useToast();
@@ -42,8 +44,8 @@ export default function StockPage() {
   const viewingCenter = isConsolidated ? null : costCenters.find(c => c.id === activeCenterId) || null;
 
   const lowStock = useMemo(
-    () => products.filter(p => getStock(p.id, activeCenterId) <= p.minStock),
-    [products, getStock, activeCenterId]
+    () => products.filter(p => getStock(p.id, activeCenterId) <= getMinStock(p.id, activeCenterId)),
+    [products, getStock, getMinStock, activeCenterId]
   );
 
   const resetForm = () => {
@@ -256,7 +258,7 @@ export default function StockPage() {
             <div className="flex flex-wrap gap-2">
               {lowStock.map(p => (
                 <Badge key={p.id} variant="outline" className="border-warning/50 text-warning">
-                  {p.name}: {getStock(p.id, activeCenterId)}/{p.minStock}
+                  {p.name}: {getStock(p.id, activeCenterId)}/{getMinStock(p.id, activeCenterId)}
                 </Badge>
               ))}
             </div>
@@ -284,7 +286,8 @@ export default function StockPage() {
             <tbody>
               {products.map(p => {
                 const qty = getStock(p.id, activeCenterId);
-                const isLow = qty <= p.minStock;
+                const effectiveMin = getMinStock(p.id, activeCenterId);
+                const isLow = qty <= effectiveMin;
                 return (
                   <tr key={p.id} className={`border-b last:border-0 transition-colors ${isLow ? 'bg-destructive/5' : 'hover:bg-muted/30'}`}>
                     <td className="p-3 font-medium">{p.name}</td>
@@ -293,7 +296,19 @@ export default function StockPage() {
                     {isConsolidated && filiais.map(f => (
                       <td key={f.id} className="p-3 text-center text-muted-foreground">{getStock(p.id, f.id)}</td>
                     ))}
-                    <td className="p-3 text-center text-muted-foreground">{p.minStock}</td>
+                    <td className="p-3 text-center">
+                      {isConsolidated ? (
+                        <span className="text-muted-foreground">{effectiveMin}</span>
+                      ) : (
+                        <MinStockCell
+                          productId={p.id}
+                          centerId={activeCenterId!}
+                          generalMin={p.minStock}
+                          effectiveMin={effectiveMin}
+                          onSave={setProductMinStockForCenter}
+                        />
+                      )}
+                    </td>
                     <td className="p-3 text-center">
                       {isLow ? <Badge variant="destructive">Baixo</Badge> : <Badge variant="secondary">OK</Badge>}
                     </td>

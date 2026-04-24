@@ -62,6 +62,33 @@ export type Database = {
         }
         Relationships: []
       }
+      product_min_stock: {
+        Row: {
+          cost_center_id: string
+          created_at: string
+          id: string
+          min_stock: number
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          cost_center_id: string
+          created_at?: string
+          id?: string
+          min_stock?: number
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          cost_center_id?: string
+          created_at?: string
+          id?: string
+          min_stock?: number
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string
