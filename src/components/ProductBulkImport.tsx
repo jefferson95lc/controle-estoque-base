@@ -17,6 +17,7 @@ interface ParsedRow {
   unit: string;
   minStock: number;
   errors: string[];
+  existingProductId?: string; // when SKU already exists and filial is selected
 }
 
 export function ProductBulkImport() {
