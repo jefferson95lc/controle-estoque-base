@@ -258,7 +258,7 @@ export default function StockPage() {
             <div className="flex flex-wrap gap-2">
               {lowStock.map(p => (
                 <Badge key={p.id} variant="outline" className="border-warning/50 text-warning">
-                  {p.name}: {getStock(p.id, activeCenterId)}/{p.minStock}
+                  {p.name}: {getStock(p.id, activeCenterId)}/{getMinStock(p.id, activeCenterId)}
                 </Badge>
               ))}
             </div>
