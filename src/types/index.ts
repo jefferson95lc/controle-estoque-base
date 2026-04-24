@@ -22,6 +22,12 @@ export interface Category {
   active: boolean;
 }
 
+export interface ProductMinStock {
+  productId: string;
+  costCenterId: string;
+  minStock: number;
+}
+
 export interface StockMovement {
   id: string;
   productId: string;
