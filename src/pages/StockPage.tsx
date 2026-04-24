@@ -24,6 +24,7 @@ export default function StockPage() {
   const {
     products, filiais, matrizId, activeCenterId, setActiveCenterId,
     addStockIn, addStockOut, transferStock, getStock, costCenters,
+    getMinStock, setProductMinStockForCenter,
   } = useApp();
   const { isMaster } = useAuth();
   const { toast } = useToast();
