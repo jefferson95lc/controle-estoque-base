@@ -128,6 +128,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         costCenterId: r.cost_center_id, destinationCenterId: r.destination_center_id || undefined,
         userId: (r as any).user_id || undefined,
       })));
+      if (minRes.data) {
+        const map: MinStockMap = {};
+        for (const r of minRes.data as any[]) {
+          if (!map[r.product_id]) map[r.product_id] = {};
+          map[r.product_id][r.cost_center_id] = r.min_stock;
+        }
+        setMinStockByCenter(map);
+      }
       setLoading(false);
     }
 
