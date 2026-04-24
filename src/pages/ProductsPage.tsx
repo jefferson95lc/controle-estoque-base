@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProductBulkImport } from '@/components/ProductBulkImport';
+import { MinStockCell } from '@/components/MinStockCell';
 
 const UNITS = ['UN', 'KG', 'CX', 'L', 'M', 'PCT'];
 
