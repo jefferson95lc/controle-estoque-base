@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useCallback, useEffect } from 'react';
-import { Product, StockMovement, CostCenter, Category } from '@/types';
+import { Product, StockMovement, CostCenter, Category, ProductMinStock } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
 type StockMap = Record<string, Record<string, number>>; // productId -> costCenterId -> qty
+type MinStockMap = Record<string, Record<string, number>>; // productId -> costCenterId -> minStock
 
 interface AppState {
   products: Product[];
