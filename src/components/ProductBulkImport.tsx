@@ -107,69 +107,41 @@ export function ProductBulkImport() {
   const handleImport = async () => {
     let createdCount = 0;
     let minSetCount = 0;
+
+    // 1) Create new products (those without existingProductId)
     for (const r of validRows) {
-      let productId = r.existingProductId;
-      if (!productId) {
-        // create new product. If filial is selected, keep general min as 0 (specific goes per-filial).
+      if (!r.existingProductId) {
         const p: Omit<Product, 'id'> = {
           name: r.name, sku: r.sku, category: r.category, unit: r.unit,
+          // When importing under a specific filial, keep general min as 0;
+          // the file's min becomes the per-filial min below.
           minStock: filialSelected ? 0 : r.minStock,
         };
         await addProduct(p);
         createdCount++;
-        // re-find the just created product to get id
-        // addProduct updates the products state, but we need the id NOW for min stock.
-        // We fetch it via the in-memory list after a short tick: instead, query DB.
-        if (filialSelected) {
-          // fallback: search by sku in updated state requires re-render; do a direct query via supabase isn't trivial here.
-          // Solution: after addProduct completes, the local products state is updated, but our closure is stale.
-          // Use a small workaround: read the latest products through the import dialog by calling a fresh select.
-        }
       }
-      if (filialSelected) {
-        // Resolve product id (handles both existing and just-created)
-        // For just-created we need to look it up from DB to be safe.
-        if (!productId) {
-          // Best-effort: it should now exist in `products` after addProduct (state updated async).
-          // To be safe, we wait a microtask and re-read from the latest products via a ref-less approach:
-          // Simpler: query the products list right now (closure may be stale, so SKU lookup may miss).
-          // Workaround: do nothing here; handled below via a second pass.
-        }
+    }
+
+    // 2) When a filial is selected, set per-filial min for ALL valid rows
+    //    (existing products + newly created — resolved via fresh DB lookup by SKU)
+    if (filialSelected) {
+      const skus = validRows.map(r => r.sku);
+      const { data: dbProducts } = await supabase.from('products').select('id, sku').in('sku', skus);
+      const idBySku = new Map((dbProducts || []).map((p: any) => [p.sku.toLowerCase(), p.id as string]));
+      for (const r of validRows) {
+        const productId = r.existingProductId || idBySku.get(r.sku.toLowerCase());
         if (productId) {
-          await setProductMinStockForCenter(productId, filialSelected, r.minStock);
-          minSetCount++;
+          const ok = await setProductMinStockForCenter(productId, filialSelected, r.minStock);
+          if (ok) minSetCount++;
         }
       }
-    }
-
-    // Second pass for newly-created products with filial selected: resolve via fresh products list
-    if (filialSelected) {
-      // Re-read via a fresh query to ensure we capture newly created ids
-      const newSkus = validRows.filter(r => !r.existingProductId).map(r => r.sku.toLowerCase());
-      if (newSkus.length > 0) {
-        // wait one tick for state to flush
-        await new Promise(res => setTimeout(res, 200));
-        // products state may still be stale in closure; use a direct fetch
-        const { supabase } = await import('@/integrations/supabase/client');
-        const { data } = await supabase.from('products').select('id, sku').in('sku', validRows.filter(r => !r.existingProductId).map(r => r.sku));
-        if (data) {
-          const idBySku = new Map(data.map((p: any) => [p.sku.toLowerCase(), p.id]));
-          for (const r of validRows.filter(r => !r.existingProductId)) {
-            const id = idBySku.get(r.sku.toLowerCase());
-            if (id) {
-              await setProductMinStockForCenter(id, filialSelected, r.minStock);
-              minSetCount++;
-            }
-          }
-        }
-      }
-    }
-
-    if (filialSelected) {
-      toast.success(`${createdCount} produto(s) criado(s) e ${minSetCount} mínimo(s) definido(s) para ${filialName}.`);
+      toast.success(
+        `${filialName}: ${createdCount} produto(s) criado(s), ${minSetCount} mínimo(s) definido(s).`
+      );
     } else {
       toast.success(`${createdCount} produto(s) importado(s) com sucesso.`);
     }
+
     reset();
     setOpen(false);
   };
