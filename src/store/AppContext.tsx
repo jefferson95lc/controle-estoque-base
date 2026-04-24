@@ -101,11 +101,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const [catRes, ccRes, prodRes, movRes] = await Promise.all([
+      const [catRes, ccRes, prodRes, movRes, minRes] = await Promise.all([
         supabase.from('categories').select('*').order('name'),
         supabase.from('cost_centers').select('*').order('name'),
         supabase.from('products').select('*').order('name'),
         supabase.from('stock_movements').select('*').order('date', { ascending: true }),
+        supabase.from('product_min_stock').select('*'),
       ]);
       if (cancelled) return;
 
