@@ -44,8 +44,8 @@ export default function StockPage() {
   const viewingCenter = isConsolidated ? null : costCenters.find(c => c.id === activeCenterId) || null;
 
   const lowStock = useMemo(
-    () => products.filter(p => getStock(p.id, activeCenterId) <= p.minStock),
-    [products, getStock, activeCenterId]
+    () => products.filter(p => getStock(p.id, activeCenterId) <= getMinStock(p.id, activeCenterId)),
+    [products, getStock, getMinStock, activeCenterId]
   );
 
   const resetForm = () => {
