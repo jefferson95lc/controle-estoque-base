@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Minus, AlertTriangle, ArrowLeftRight, Building2 } from 'lucide-react';
 import { StockBulkImport } from '@/components/StockBulkImport';
 import { ProductCombobox } from '@/components/ProductCombobox';
+import { MinStockCell } from '@/components/MinStockCell';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
