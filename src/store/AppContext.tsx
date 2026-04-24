@@ -150,6 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setMovements([]);
         setCostCenters([]);
         setCategories([]);
+        setMinStockByCenter({});
         setLoading(false);
       }
     });
