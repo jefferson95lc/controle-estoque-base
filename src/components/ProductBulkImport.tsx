@@ -246,7 +246,13 @@ export function ProductBulkImport() {
                         <td className="p-2">{r.unit}</td>
                         <td className="p-2">
                           {r.errors.length === 0 ? (
-                            <span className="text-emerald-600 dark:text-emerald-400">OK</span>
+                            r.existingProductId && filialSelected ? (
+                              <span className="text-blue-600 dark:text-blue-400">Atualizar mín. ({filialName})</span>
+                            ) : (
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                {filialSelected ? `Criar + mín. ${filialName}` : 'OK'}
+                              </span>
+                            )
                           ) : (
                             <span className="text-destructive">{r.errors.join('; ')}</span>
                           )}
