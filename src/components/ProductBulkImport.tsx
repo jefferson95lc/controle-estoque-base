@@ -163,6 +163,19 @@ export function ProductBulkImport() {
         </DialogHeader>
 
         <div className="space-y-4">
+          {filialSelected && (
+            <div className="rounded-lg border border-primary/30 p-3 bg-primary/5 text-sm flex items-start gap-2">
+              <Building2 size={16} className="text-primary mt-0.5" />
+              <div>
+                <p className="font-medium">Importando para a filial: {filialName}</p>
+                <p className="text-muted-foreground text-xs mt-0.5">
+                  A coluna <code className="bg-muted px-1 rounded">estoque_minimo</code> do arquivo será gravada como <strong>mínimo desta filial</strong>.
+                  Produtos novos serão criados com mínimo geral 0. SKUs já existentes terão apenas o mínimo desta filial atualizado.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-lg border border-dashed p-4 bg-muted/30">
             <div className="flex items-start gap-3">
               <FileSpreadsheet className="text-primary mt-0.5" size={20} />
