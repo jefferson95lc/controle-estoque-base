@@ -17,9 +17,11 @@ const UNITS = ['UN', 'KG', 'CX', 'L', 'M', 'PCT'];
 const emptyProduct: Omit<Product, 'id'> = { name: '', sku: '', category: '', unit: 'UN', minStock: 0 };
 
 export default function ProductsPage() {
-  const { products, addProduct, updateProduct, deleteProduct, getStock, activeCenterId, categories } = useApp();
+  const { products, addProduct, updateProduct, deleteProduct, getStock, activeCenterId, categories, costCenters, matrizId, getMinStock, setProductMinStockForCenter } = useApp();
   const { isMaster } = useAuth();
   const activeCategories = categories.filter(c => c.active);
+  const filialSelected = activeCenterId && activeCenterId !== matrizId ? activeCenterId : null;
+  const filialName = filialSelected ? costCenters.find(c => c.id === filialSelected)?.name : null;
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
