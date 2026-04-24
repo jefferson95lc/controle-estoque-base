@@ -55,7 +55,7 @@ export function ProductBulkImport() {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
 
-        const existingSkus = new Set(products.map(p => p.sku.toLowerCase()));
+        const productsBySku = new Map(products.map(p => [p.sku.toLowerCase(), p]));
         const seenSkus = new Set<string>();
 
         const result: ParsedRow[] = rows.map((r, idx) => {
@@ -66,16 +66,29 @@ export function ProductBulkImport() {
           const unitRaw = String(r.unidade ?? r.unit ?? 'UN').trim().toUpperCase();
           const minStock = Number(r.estoque_minimo ?? r.minStock ?? 0);
 
+          const existing = sku ? productsBySku.get(sku.toLowerCase()) : undefined;
+
           if (!name) errors.push('Nome obrigatório');
           if (!sku) errors.push('SKU obrigatório');
-          if (sku && existingSkus.has(sku.toLowerCase())) errors.push('SKU já existe');
+          if (sku && existing && !filialSelected) errors.push('SKU já existe');
           if (sku && seenSkus.has(sku.toLowerCase())) errors.push('SKU duplicado no arquivo');
           if (sku) seenSkus.add(sku.toLowerCase());
-          if (!UNITS.includes(unitRaw)) errors.push(`Unidade inválida (use: ${UNITS.join(', ')})`);
-          if (category && !activeCategoryNames.includes(category.toLowerCase())) errors.push('Categoria não cadastrada/inativa');
+          if (!filialSelected || !existing) {
+            if (!UNITS.includes(unitRaw)) errors.push(`Unidade inválida (use: ${UNITS.join(', ')})`);
+            if (category && !activeCategoryNames.includes(category.toLowerCase())) errors.push('Categoria não cadastrada/inativa');
+          }
           if (isNaN(minStock) || minStock < 0) errors.push('Estoque mínimo inválido');
 
-          return { row: idx + 2, name, sku, category, unit: unitRaw, minStock: isNaN(minStock) ? 0 : minStock, errors };
+          return {
+            row: idx + 2,
+            name,
+            sku,
+            category,
+            unit: unitRaw,
+            minStock: isNaN(minStock) ? 0 : minStock,
+            errors,
+            existingProductId: existing?.id,
+          };
         });
 
         setParsed(result);
@@ -91,13 +104,71 @@ export function ProductBulkImport() {
   const invalidRows = parsed.filter(r => r.errors.length > 0);
 
   const handleImport = async () => {
+    let createdCount = 0;
+    let minSetCount = 0;
     for (const r of validRows) {
-      const p: Omit<Product, 'id'> = {
-        name: r.name, sku: r.sku, category: r.category, unit: r.unit, minStock: r.minStock,
-      };
-      await addProduct(p);
+      let productId = r.existingProductId;
+      if (!productId) {
+        // create new product. If filial is selected, keep general min as 0 (specific goes per-filial).
+        const p: Omit<Product, 'id'> = {
+          name: r.name, sku: r.sku, category: r.category, unit: r.unit,
+          minStock: filialSelected ? 0 : r.minStock,
+        };
+        await addProduct(p);
+        createdCount++;
+        // re-find the just created product to get id
+        // addProduct updates the products state, but we need the id NOW for min stock.
+        // We fetch it via the in-memory list after a short tick: instead, query DB.
+        if (filialSelected) {
+          // fallback: search by sku in updated state requires re-render; do a direct query via supabase isn't trivial here.
+          // Solution: after addProduct completes, the local products state is updated, but our closure is stale.
+          // Use a small workaround: read the latest products through the import dialog by calling a fresh select.
+        }
+      }
+      if (filialSelected) {
+        // Resolve product id (handles both existing and just-created)
+        // For just-created we need to look it up from DB to be safe.
+        if (!productId) {
+          // Best-effort: it should now exist in `products` after addProduct (state updated async).
+          // To be safe, we wait a microtask and re-read from the latest products via a ref-less approach:
+          // Simpler: query the products list right now (closure may be stale, so SKU lookup may miss).
+          // Workaround: do nothing here; handled below via a second pass.
+        }
+        if (productId) {
+          await setProductMinStockForCenter(productId, filialSelected, r.minStock);
+          minSetCount++;
+        }
+      }
     }
-    toast.success(`${validRows.length} produto(s) importado(s) com sucesso.`);
+
+    // Second pass for newly-created products with filial selected: resolve via fresh products list
+    if (filialSelected) {
+      // Re-read via a fresh query to ensure we capture newly created ids
+      const newSkus = validRows.filter(r => !r.existingProductId).map(r => r.sku.toLowerCase());
+      if (newSkus.length > 0) {
+        // wait one tick for state to flush
+        await new Promise(res => setTimeout(res, 200));
+        // products state may still be stale in closure; use a direct fetch
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data } = await supabase.from('products').select('id, sku').in('sku', validRows.filter(r => !r.existingProductId).map(r => r.sku));
+        if (data) {
+          const idBySku = new Map(data.map((p: any) => [p.sku.toLowerCase(), p.id]));
+          for (const r of validRows.filter(r => !r.existingProductId)) {
+            const id = idBySku.get(r.sku.toLowerCase());
+            if (id) {
+              await setProductMinStockForCenter(id, filialSelected, r.minStock);
+              minSetCount++;
+            }
+          }
+        }
+      }
+    }
+
+    if (filialSelected) {
+      toast.success(`${createdCount} produto(s) criado(s) e ${minSetCount} mínimo(s) definido(s) para ${filialName}.`);
+    } else {
+      toast.success(`${createdCount} produto(s) importado(s) com sucesso.`);
+    }
     reset();
     setOpen(false);
   };
