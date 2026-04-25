@@ -46,16 +46,42 @@ export default function ForecastCard() {
       .sort((a, b) => b.sugestaoCompra - a.sugestaoCompra);
   }, [products, movements, filiais, activeCenterId, isConsolidated, getStock]);
 
+  const handleExport = () => {
+    const data = rows.map(r => ({
+      'Produto': r.p.name,
+      'SKU': r.p.sku,
+      'Unidade': r.p.unit,
+      'Consumo 90d': r.consumo90,
+      'Média/dia': Number(r.mediaDiaria.toFixed(4)),
+      [`Previsão ${HORIZON_DAYS}d`]: r.previsao,
+      'Estoque atual': r.estoqueAtual,
+      'Cobertura (dias)': r.diasCobertura === Infinity ? '∞' : r.diasCobertura,
+      'Sugestão compra': r.sugestaoCompra,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Previsão');
+    const stamp = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `previsao-consumo-${scopeLabel.toLowerCase().replace(/\s+/g, '-')}-${stamp}.xlsx`);
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-heading text-lg flex items-center gap-2">
-          <TrendingUp size={18} className="text-primary" />
-          Previsão de Consumo (próximos {HORIZON_DAYS} dias)
-        </CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Baseado nas saídas dos últimos {HISTORY_DAYS} dias · {isConsolidated ? 'Consolidado (todas as filiais)' : 'Filial selecionada'}
-        </p>
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div>
+            <CardTitle className="font-heading text-lg flex items-center gap-2">
+              <TrendingUp size={18} className="text-primary" />
+              Previsão de Consumo (próximos {HORIZON_DAYS} dias)
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Baseado nas saídas dos últimos {HISTORY_DAYS} dias · {isConsolidated ? 'Consolidado (todas as filiais)' : scopeLabel}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={rows.length === 0}>
+            <Download size={14} className="mr-2" /> Exportar Excel
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
