@@ -33,6 +33,27 @@ export default function ProductsPage() {
     p.sku.toLowerCase().includes(search.toLowerCase())
   );
 
+  const generateNextSku = () => {
+    const re = /^SKU(\d+)$/i;
+    let max = 0;
+    let pad = 3;
+    products.forEach(p => {
+      const m = p.sku?.match(re);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (n > max) max = n;
+        if (m[1].length > pad) pad = m[1].length;
+      }
+    });
+    return `SKU${String(max + 1).padStart(pad, '0')}`;
+  };
+
+  const handleOpenNew = () => {
+    setEditing(null);
+    setForm({ ...emptyProduct, sku: generateNextSku() });
+    setOpen(true);
+  };
+
   const handleSave = async () => {
     if (!form.name || !form.sku) return;
     if (editing) {
