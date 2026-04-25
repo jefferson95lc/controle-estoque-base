@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '@/store/AppContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ interface OrderItem {
 }
 
 export default function PurchaseOrderPage() {
-  const { products, costCenters, matrizId, getStock, activeCenterId } = useApp();
+  const { products, costCenters, matrizId, getStock, getMinStock, activeCenterId } = useApp();
   const { toast } = useToast();
   const [selected, setSelected] = useState<Record<string, OrderItem>>({});
 
@@ -28,14 +28,25 @@ export default function PurchaseOrderPage() {
     activeCenterId && activeCenterId !== matrizId ? activeCenterId : 'consolidado'
   );
 
+  // Sync scope when the global active filial changes (header selector)
+  useEffect(() => {
+    const next = activeCenterId && activeCenterId !== matrizId ? activeCenterId : 'consolidado';
+    setScope(next);
+    setSelected({});
+  }, [activeCenterId, matrizId]);
+
   const scopeId: string | null = scope === 'consolidado' ? null : scope;
   const scopeLabel = scope === 'consolidado'
     ? (matrizId ? 'Matriz (Consolidado)' : 'Consolidado')
     : (costCenters.find(c => c.id === scope)?.name || '—');
 
   const productsWithStock = useMemo(
-    () => products.map(p => ({ ...p, currentStock: getStock(p.id, scopeId) })),
-    [products, getStock, scopeId]
+    () => products.map(p => ({
+      ...p,
+      currentStock: getStock(p.id, scopeId),
+      effectiveMin: getMinStock(p.id, scopeId),
+    })),
+    [products, getStock, getMinStock, scopeId]
   );
 
   const toggleProduct = (id: string) => {
@@ -45,7 +56,7 @@ export default function PurchaseOrderPage() {
         delete next[id];
       } else {
         const product = productsWithStock.find(p => p.id === id);
-        const suggestedQty = product ? Math.max(0, product.minStock - product.currentStock) : 0;
+        const suggestedQty = product ? Math.max(0, product.effectiveMin - product.currentStock) : 0;
         next[id] = { productId: id, quantity: suggestedQty > 0 ? suggestedQty : 1, obs: '' };
       }
       return next;
@@ -57,10 +68,10 @@ export default function PurchaseOrderPage() {
   };
 
   const selectLowStock = () => {
-    const lowStock = productsWithStock.filter(p => p.currentStock <= p.minStock);
+    const lowStock = productsWithStock.filter(p => p.currentStock <= p.effectiveMin);
     const next: Record<string, OrderItem> = {};
     lowStock.forEach(p => {
-      next[p.id] = { productId: p.id, quantity: Math.max(1, p.minStock - p.currentStock), obs: '' };
+      next[p.id] = { productId: p.id, quantity: Math.max(1, p.effectiveMin - p.currentStock), obs: '' };
     });
     setSelected(next);
   };
@@ -190,7 +201,7 @@ export default function PurchaseOrderPage() {
             <tbody>
               {productsWithStock.map(p => {
                 const isSelected = !!selected[p.id];
-                const isLow = p.currentStock <= p.minStock;
+                const isLow = p.currentStock <= p.effectiveMin;
                 return (
                   <tr key={p.id} className={`border-b last:border-0 transition-colors ${isSelected ? 'bg-primary/5' : isLow ? 'bg-destructive/5' : 'hover:bg-muted/30'}`}>
                     <td className="p-3 text-center">
@@ -199,7 +210,7 @@ export default function PurchaseOrderPage() {
                     <td className="p-3 font-medium">{p.name}</td>
                     <td className="p-3 text-muted-foreground font-mono text-xs">{p.sku}</td>
                     <td className={`p-3 text-center font-semibold ${isLow ? 'text-destructive' : ''}`}>{p.currentStock} {p.unit}</td>
-                    <td className="p-3 text-center text-muted-foreground">{p.minStock}</td>
+                    <td className="p-3 text-center text-muted-foreground">{p.effectiveMin}</td>
                     <td className="p-3 text-center">
                       {isLow ? <Badge variant="destructive">Baixo</Badge> : <Badge variant="secondary">OK</Badge>}
                     </td>
