@@ -321,6 +321,7 @@ export default function StockPage() {
               )}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
     </div>
