@@ -102,13 +102,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       // Helper to fetch ALL rows bypassing the default 1000-row limit
-      async function fetchAll<T = any>(table: string, build?: (q: any) => any): Promise<T[]> {
+      async function fetchAll<T = any>(table: any, build?: (q: any) => any): Promise<T[]> {
         const pageSize = 1000;
         let from = 0;
         const all: T[] = [];
         // eslint-disable-next-line no-constant-condition
         while (true) {
-          let q: any = supabase.from(table).select('*').range(from, from + pageSize - 1);
+          let q: any = (supabase.from(table) as any).select('*').range(from, from + pageSize - 1);
           if (build) q = build(q);
           const { data, error } = await q;
           if (error) { console.error(`fetchAll(${table})`, error); break; }
