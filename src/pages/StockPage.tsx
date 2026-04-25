@@ -267,8 +267,9 @@ export default function StockPage() {
       )}
 
       <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm">
+        <CardContent className="p-0">
+          <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-max text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="text-left p-3 font-medium">Produto</th>
