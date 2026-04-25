@@ -11,9 +11,10 @@ const HORIZON_DAYS = 30;
 const HISTORY_DAYS = 90;
 
 export default function ForecastCard() {
-  const { products, movements, getStock, activeCenterId, matrizId, filiais } = useApp();
+  const { products, movements, getStock, activeCenterId, matrizId, filiais, costCenters } = useApp();
 
   const isConsolidated = !activeCenterId || activeCenterId === matrizId;
+  const scopeLabel = isConsolidated ? 'Consolidado' : (costCenters.find(c => c.id === activeCenterId)?.name || 'Filial');
 
   const rows = useMemo(() => {
     const now = Date.now();
