@@ -101,13 +101,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const [catRes, ccRes, prodRes, movRes, minRes] = await Promise.all([
-        supabase.from('categories').select('*').order('name'),
-        supabase.from('cost_centers').select('*').order('name'),
-        supabase.from('products').select('*').order('name'),
-        supabase.from('stock_movements').select('*').order('date', { ascending: true }),
-        supabase.from('product_min_stock').select('*'),
+      // Helper to fetch ALL rows bypassing the default 1000-row limit
+      async function fetchAll<T = any>(table: any, build?: (q: any) => any): Promise<T[]> {
+        const pageSize = 1000;
+        let from = 0;
+        const all: T[] = [];
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          let q: any = (supabase.from(table) as any).select('*').range(from, from + pageSize - 1);
+          if (build) q = build(q);
+          const { data, error } = await q;
+          if (error) { console.error(`fetchAll(${table})`, error); break; }
+          if (!data || data.length === 0) break;
+          all.push(...(data as T[]));
+          if (data.length < pageSize) break;
+          from += pageSize;
+        }
+        return all;
+      }
+
+      const [catData, ccData, prodData, movData, minData] = await Promise.all([
+        fetchAll('categories', q => q.order('name')),
+        fetchAll('cost_centers', q => q.order('name')),
+        fetchAll('products', q => q.order('name')),
+        fetchAll('stock_movements', q => q.order('date', { ascending: true })),
+        fetchAll('product_min_stock'),
       ]);
+      const catRes = { data: catData } as any;
+      const ccRes = { data: ccData } as any;
+      const prodRes = { data: prodData } as any;
+      const movRes = { data: movData } as any;
+      const minRes = { data: minData } as any;
       if (cancelled) return;
 
       if (catRes.data) setCategories(catRes.data.map(r => ({ id: r.id, name: r.name, active: r.active })));
