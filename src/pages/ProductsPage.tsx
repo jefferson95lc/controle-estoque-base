@@ -80,7 +80,7 @@ export default function ProductsPage() {
         {isMaster && <ProductBulkImport />}
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(null); setForm(emptyProduct); } }}>
           <DialogTrigger asChild>
-            <Button><Plus size={16} className="mr-2" />Novo Produto</Button>
+            <Button onClick={handleOpenNew}><Plus size={16} className="mr-2" />Novo Produto</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
