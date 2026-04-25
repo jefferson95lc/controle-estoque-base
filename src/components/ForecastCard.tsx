@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import { useApp } from '@/store/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, Download } from 'lucide-react';
 
 const HORIZON_DAYS = 30;
 const HISTORY_DAYS = 90;
