@@ -60,6 +60,7 @@ export default function StockPage() {
       return;
     }
     setCenterId(activeCenterId && activeCenterId !== matrizId ? activeCenterId : '');
+    setReason('Compra');
     setInOpen(true);
   };
   const openOut = () => {
@@ -68,6 +69,7 @@ export default function StockPage() {
       return;
     }
     setCenterId(activeCenterId && activeCenterId !== matrizId ? activeCenterId : '');
+    setReason('Uso interno');
     setOutOpen(true);
   };
   const openTransfer = () => {
