@@ -267,8 +267,9 @@ export default function StockPage() {
       )}
 
       <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm">
+        <CardContent className="p-0">
+          <div className="w-full overflow-x-auto">
+          <table className="w-full min-w-max text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="text-left p-3 font-medium">Produto</th>
@@ -277,7 +278,7 @@ export default function StockPage() {
                   {isConsolidated ? 'Consolidado' : viewingCenter?.name}
                 </th>
                 {isConsolidated && filiais.map(f => (
-                  <th key={f.id} className="text-center p-3 font-medium text-xs text-muted-foreground">{f.name}</th>
+                  <th key={f.id} className="text-center p-3 font-medium text-xs text-muted-foreground whitespace-nowrap">{f.name}</th>
                 ))}
                 <th className="text-center p-3 font-medium">Mín.</th>
                 <th className="text-center p-3 font-medium">Status</th>
@@ -320,6 +321,7 @@ export default function StockPage() {
               )}
             </tbody>
           </table>
+          </div>
         </CardContent>
       </Card>
     </div>
