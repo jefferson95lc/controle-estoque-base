@@ -7,14 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import ForecastCard from '@/components/ForecastCard';
 
 export default function DashboardPage() {
-  const { products, movements, costCenters, getStock, activeCenterId, matrizId, filiais } = useApp();
+  const { products, movements, costCenters, getStock, getMinStock, activeCenterId, matrizId, filiais } = useApp();
 
   const isConsolidated = !activeCenterId || activeCenterId === matrizId;
   const scopeLabel = isConsolidated
     ? (matrizId ? 'Matriz (Consolidado)' : 'Consolidado')
     : (costCenters.find(c => c.id === activeCenterId)?.name || '—');
 
-  const lowStock = products.filter(p => getStock(p.id, activeCenterId) <= p.minStock);
+  const lowStock = products.filter(p => getStock(p.id, activeCenterId) <= getMinStock(p.id, activeCenterId));
 
   const scopedMovements = isConsolidated
     ? movements
@@ -66,7 +66,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {filiais.map(f => {
                 const total = products.reduce((sum, p) => sum + getStock(p.id, f.id), 0);
-                const low = products.filter(p => getStock(p.id, f.id) <= p.minStock).length;
+                const low = products.filter(p => getStock(p.id, f.id) <= getMinStock(p.id, f.id)).length;
                 return (
                   <div key={f.id} className="p-3 rounded-md border bg-secondary/30">
                     <div className="flex items-center gap-2 mb-1">
@@ -93,10 +93,11 @@ export default function DashboardPage() {
               <div className="space-y-2">
                 {lowStock.map(p => {
                   const qty = getStock(p.id, activeCenterId);
+                  const min = getMinStock(p.id, activeCenterId);
                   return (
                     <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-destructive/10">
                       <span className="text-sm font-medium">{p.name}</span>
-                      <span className="text-sm text-destructive font-semibold">{qty}/{p.minStock} {p.unit}</span>
+                      <span className="text-sm text-destructive font-semibold">{qty}/{min} {p.unit}</span>
                     </div>
                   );
                 })}
