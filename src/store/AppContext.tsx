@@ -405,6 +405,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProductMinStockForCenter,
       matrizId: matriz?.id || null,
       filiais,
+      isMaster,
     }}>
       {children}
     </AppContext.Provider>
