@@ -17,8 +17,9 @@ export default function DashboardPage() {
 
   const lowStock = products.filter(p => getStock(p.id, activeCenterId) <= getMinStock(p.id, activeCenterId));
 
+  const allowedIds = useMemo(() => new Set(filiais.map(f => f.id).concat(matrizId ? [matrizId] : [])), [filiais, matrizId]);
   const scopedMovements = isConsolidated
-    ? movements
+    ? movements.filter(m => allowedIds.has(m.costCenterId) || (m.destinationCenterId && allowedIds.has(m.destinationCenterId)))
     : movements.filter(m => m.costCenterId === activeCenterId || m.destinationCenterId === activeCenterId);
 
   const recentMovements = [...scopedMovements].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
