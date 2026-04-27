@@ -68,6 +68,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [minStockByCenter, setMinStockByCenter] = useState<MinStockMap>({});
   const [activeCenterId, setActiveCenterId] = useState<string | null>(null);
+  const [isMaster, setIsMaster] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
   const stockByCenter = useMemo(() => buildStockMap(movements), [movements]);
