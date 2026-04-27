@@ -27,12 +27,18 @@ export default function DashboardPage() {
 
   // Último custo por produto: prioriza entrada na filial ativa; fallback para global
   const lastCostByProduct = useMemo(() => {
-    const sorted = [...movements]
-      .filter(m => m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Date desc + insertion-order tiebreaker (newer insert wins on same date)
+    const sorted = movements
+      .map((m, idx) => ({ m, idx }))
+      .filter(({ m }) => m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
+      .sort((a, b) => {
+        const diff = new Date(b.m.date).getTime() - new Date(a.m.date).getTime();
+        if (diff !== 0) return diff;
+        return b.idx - a.idx;
+      });
     const globalMap: Record<string, number> = {};
     const scopedMap: Record<string, number> = {};
-    for (const m of sorted) {
+    for (const { m } of sorted) {
       if (globalMap[m.productId] == null) globalMap[m.productId] = m.unitCost as number;
       if (!isConsolidated && m.costCenterId === activeCenterId && scopedMap[m.productId] == null) {
         scopedMap[m.productId] = m.unitCost as number;
