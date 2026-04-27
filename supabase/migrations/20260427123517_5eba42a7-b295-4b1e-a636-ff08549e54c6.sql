@@ -1,0 +1,1 @@
+ALTER TABLE public.stock_movements ADD COLUMN IF NOT EXISTS unit_cost numeric(12,2);

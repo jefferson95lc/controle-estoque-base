@@ -48,24 +48,37 @@ export default function ReportsPage() {
   const getCenterName = (id?: string) => id ? (costCenters.find(c => c.id === id)?.name || '—') : '—';
   const getUserEmail = (userId?: string) => userId ? (userMap[userId] || '—') : '—';
 
+  const formatBRL = (v?: number) =>
+    v == null || isNaN(v) ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
   const exportToExcel = () => {
-    const data = filteredMovements.map(m => ({
-      'Data': format(parseISO(m.date), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
-      'Produto': getProductName(m.productId),
-      'Tipo': m.type === 'entrada' ? 'Entrada' : m.type === 'saida' ? 'Saída' : 'Transferência',
-      'Centro de Custo': m.type === 'transferencia'
-        ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
-        : getCenterName(m.costCenterId),
-      'Quantidade': m.quantity,
-      'Motivo': m.reason,
-      'Usuário': getUserEmail(m.userId),
-    }));
+    const data = filteredMovements.map(m => {
+      const total = m.type === 'entrada' && m.unitCost != null ? m.unitCost * m.quantity : null;
+      return {
+        'Data': format(parseISO(m.date), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
+        'Produto': getProductName(m.productId),
+        'Tipo': m.type === 'entrada' ? 'Entrada' : m.type === 'saida' ? 'Saída' : 'Transferência',
+        'Centro de Custo': m.type === 'transferencia'
+          ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
+          : getCenterName(m.costCenterId),
+        'Quantidade': m.quantity,
+        'Valor Unitário (R$)': m.type === 'entrada' && m.unitCost != null ? m.unitCost : '',
+        'Valor Total (R$)': total != null ? total : '',
+        'Motivo': m.reason,
+        'Usuário': getUserEmail(m.userId),
+      };
+    });
     const ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{ wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 10 }, { wch: 25 }, { wch: 30 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 25 }, { wch: 30 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
     XLSX.writeFile(wb, `relatorio_movimentacoes_${format(new Date(), 'yyyyMMdd')}.xlsx`);
   };
+
+  const totalEntradasValor = useMemo(
+    () => filteredMovements.reduce((sum, m) => sum + (m.type === 'entrada' && m.unitCost != null ? m.unitCost * m.quantity : 0), 0),
+    [filteredMovements]
+  );
 
   return (
     <div className="space-y-6">
@@ -91,6 +104,16 @@ export default function ReportsPage() {
         </Button>
       </div>
 
+      <Card className="bg-success/5 border-success/30">
+        <CardContent className="pt-4 pb-4 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <p className="text-xs text-muted-foreground">Total investido em entradas (período/filtro)</p>
+            <p className="text-2xl font-heading font-bold text-success">{formatBRL(totalEntradasValor)}</p>
+          </div>
+          <p className="text-xs text-muted-foreground">{filteredMovements.filter(m => m.type === 'entrada').length} entrada(s)</p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
@@ -101,32 +124,39 @@ export default function ReportsPage() {
                 <th className="text-center p-3 font-medium">Tipo</th>
                 <th className="text-left p-3 font-medium">Centro de Custo</th>
                 <th className="text-center p-3 font-medium">Qtd</th>
+                <th className="text-right p-3 font-medium">Valor Unit.</th>
+                <th className="text-right p-3 font-medium">Total</th>
                 <th className="text-left p-3 font-medium">Motivo</th>
                 <th className="text-left p-3 font-medium">Usuário</th>
               </tr>
             </thead>
             <tbody>
-              {filteredMovements.map(m => (
-                <tr key={m.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                  <td className="p-3 text-muted-foreground">{format(parseISO(m.date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</td>
-                  <td className="p-3 font-medium">{getProductName(m.productId)}</td>
-                  <td className="p-3 text-center">
-                    <Badge variant={m.type === 'entrada' ? 'default' : m.type === 'saida' ? 'destructive' : 'secondary'}>
-                      {m.type === 'entrada' ? '↑ Entrada' : m.type === 'saida' ? '↓ Saída' : '⇄ Transferência'}
-                    </Badge>
-                  </td>
-                  <td className="p-3 text-muted-foreground">
-                    {m.type === 'transferencia'
-                      ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
-                      : getCenterName(m.costCenterId)}
-                  </td>
-                  <td className="p-3 text-center font-semibold">{m.quantity}</td>
-                  <td className="p-3 text-muted-foreground">{m.reason}</td>
-                  <td className="p-3 text-muted-foreground">{getUserEmail(m.userId)}</td>
-                </tr>
-              ))}
+              {filteredMovements.map(m => {
+                const total = m.type === 'entrada' && m.unitCost != null ? m.unitCost * m.quantity : null;
+                return (
+                  <tr key={m.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                    <td className="p-3 text-muted-foreground">{format(parseISO(m.date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</td>
+                    <td className="p-3 font-medium">{getProductName(m.productId)}</td>
+                    <td className="p-3 text-center">
+                      <Badge variant={m.type === 'entrada' ? 'default' : m.type === 'saida' ? 'destructive' : 'secondary'}>
+                        {m.type === 'entrada' ? '↑ Entrada' : m.type === 'saida' ? '↓ Saída' : '⇄ Transferência'}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-muted-foreground">
+                      {m.type === 'transferencia'
+                        ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
+                        : getCenterName(m.costCenterId)}
+                    </td>
+                    <td className="p-3 text-center font-semibold">{m.quantity}</td>
+                    <td className="p-3 text-right text-muted-foreground">{m.type === 'entrada' ? formatBRL(m.unitCost) : '—'}</td>
+                    <td className="p-3 text-right font-medium">{total != null ? formatBRL(total) : '—'}</td>
+                    <td className="p-3 text-muted-foreground">{m.reason}</td>
+                    <td className="p-3 text-muted-foreground">{getUserEmail(m.userId)}</td>
+                  </tr>
+                );
+              })}
               {filteredMovements.length === 0 && (
-                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
+                <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
               )}
             </tbody>
           </table>

@@ -39,6 +39,7 @@ export default function StockPage() {
   const [movDate, setMovDate] = useState(todayStr());
   const [centerId, setCenterId] = useState<string>('');
   const [destCenterId, setDestCenterId] = useState<string>('');
+  const [unitCost, setUnitCost] = useState<string>('');
 
   const isConsolidated = !activeCenterId || activeCenterId === matrizId;
   const viewingCenter = isConsolidated ? null : costCenters.find(c => c.id === activeCenterId) || null;
@@ -52,6 +53,7 @@ export default function StockPage() {
     setProductId(''); setQuantity(1); setReason(''); setMovDate(todayStr());
     setCenterId(activeCenterId && activeCenterId !== matrizId ? activeCenterId : '');
     setDestCenterId('');
+    setUnitCost('');
   };
 
   const openIn = () => {
@@ -83,8 +85,13 @@ export default function StockPage() {
 
   const handleIn = async () => {
     if (!productId || !reason || quantity <= 0 || !centerId) return;
+    const cost = parseFloat(unitCost.replace(',', '.'));
+    if (!unitCost || isNaN(cost) || cost <= 0) {
+      toast({ title: 'Valor obrigatório', description: 'Informe o valor unitário do produto.', variant: 'destructive' });
+      return;
+    }
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
-    const ok = await addStockIn(productId, quantity, reason, centerId, dateISO);
+    const ok = await addStockIn(productId, quantity, reason, centerId, dateISO, cost);
     if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Entrada registrada.' });
     setInOpen(false); resetForm();
@@ -157,6 +164,28 @@ export default function StockPage() {
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Quantidade</Label><Input type="number" min={1} value={quantity} onChange={e => setQuantity(Number(e.target.value))} /></div>
               <div><Label>Data</Label><Input type="date" value={movDate} onChange={e => setMovDate(e.target.value)} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Valor unitário (R$) *</Label>
+                <Input
+                  type="number" min={0} step="0.01" placeholder="0,00"
+                  value={unitCost}
+                  onChange={e => setUnitCost(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>Total</Label>
+                <Input
+                  readOnly
+                  value={(() => {
+                    const c = parseFloat((unitCost || '0').replace(',', '.'));
+                    if (isNaN(c) || c <= 0) return 'R$ 0,00';
+                    return (c * quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                  })()}
+                  className="bg-muted/40"
+                />
+              </div>
             </div>
             <div>
               <Label>Motivo</Label>
