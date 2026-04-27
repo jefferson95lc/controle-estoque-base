@@ -45,19 +45,28 @@ export default function PurchaseOrderPage() {
   // - When scope is 'consolidado': uses the most recent 'entrada' across all filiais.
   // Fallback: if no entry exists for the selected filial, uses the global last cost.
   const lastCostByProduct = useMemo(() => {
-    const sorted = [...movements]
-      .filter(m => m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // Filter entradas with valid cost. Iterate in reverse (most recently inserted first)
+    // and use a stable date desc sort so that, for ties on the same day, the last
+    // inserted record wins — fixes "Último valor" not refreshing when two entries
+    // share the same date.
+    const entradas = movements
+      .map((m, idx) => ({ m, idx }))
+      .filter(({ m }) => m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
+      .sort((a, b) => {
+        const diff = new Date(b.m.date).getTime() - new Date(a.m.date).getTime();
+        if (diff !== 0) return diff;
+        return b.idx - a.idx; // newer insertion wins on tie
+      });
 
     const globalMap: Record<string, number> = {};
-    for (const m of sorted) {
+    for (const { m } of entradas) {
       if (globalMap[m.productId] == null) globalMap[m.productId] = m.unitCost as number;
     }
 
     if (!scopeId) return globalMap;
 
     const scopedMap: Record<string, number> = {};
-    for (const m of sorted) {
+    for (const { m } of entradas) {
       if (m.costCenterId !== scopeId) continue;
       if (scopedMap[m.productId] == null) scopedMap[m.productId] = m.unitCost as number;
     }
