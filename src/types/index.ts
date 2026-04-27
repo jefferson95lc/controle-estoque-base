@@ -38,4 +38,5 @@ export interface StockMovement {
   costCenterId: string;          // origin (entrada/saida/transferencia)
   destinationCenterId?: string;  // only for transferencia
   userId?: string;               // who performed the movement
+  unitCost?: number;             // valor unitário (R$) — usado em entradas
 }
