@@ -25,17 +25,21 @@ export default function DashboardPage() {
   const totalEntradas = scopedMovements.filter(m => m.type === 'entrada').length;
   const totalSaidas = scopedMovements.filter(m => m.type === 'saida').length;
 
-  // Last unit cost per product (most recent entrada with unitCost) — global reference
+  // Último custo por produto: prioriza entrada na filial ativa; fallback para global
   const lastCostByProduct = useMemo(() => {
-    const map: Record<string, number> = {};
     const sorted = [...movements]
       .filter(m => m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const globalMap: Record<string, number> = {};
+    const scopedMap: Record<string, number> = {};
     for (const m of sorted) {
-      if (map[m.productId] == null) map[m.productId] = m.unitCost as number;
+      if (globalMap[m.productId] == null) globalMap[m.productId] = m.unitCost as number;
+      if (!isConsolidated && m.costCenterId === activeCenterId && scopedMap[m.productId] == null) {
+        scopedMap[m.productId] = m.unitCost as number;
+      }
     }
-    return map;
-  }, [movements]);
+    return { ...globalMap, ...scopedMap };
+  }, [movements, activeCenterId, isConsolidated]);
 
   // Valor total em estoque no escopo atual = soma(estoque_atual_no_escopo × último_custo)
   const totalStockValue = useMemo(() => {
