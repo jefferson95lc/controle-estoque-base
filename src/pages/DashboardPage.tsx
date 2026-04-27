@@ -15,7 +15,17 @@ export default function DashboardPage() {
     ? (matrizId ? 'Matriz (Consolidado)' : 'Consolidado')
     : (costCenters.find(c => c.id === activeCenterId)?.name || '—');
 
-  const lowStock = products.filter(p => getStock(p.id, activeCenterId) <= getMinStock(p.id, activeCenterId));
+  const lowStock = products
+    .filter(p => getStock(p.id, activeCenterId) <= getMinStock(p.id, activeCenterId))
+    .map(p => {
+      const qty = getStock(p.id, activeCenterId);
+      const min = getMinStock(p.id, activeCenterId);
+      // Urgência: % de déficit em relação ao mínimo (mais negativo = mais urgente)
+      // Se min = 0, usa qty negativa para ordenar; senão usa ratio
+      const ratio = min > 0 ? qty / min : qty;
+      return { product: p, qty, min, ratio };
+    })
+    .sort((a, b) => a.ratio - b.ratio);
 
   const scopedMovements = isConsolidated
     ? movements
