@@ -19,7 +19,7 @@ interface OrderItem {
 }
 
 export default function PurchaseOrderPage() {
-  const { products, costCenters, matrizId, getStock, getMinStock, activeCenterId } = useApp();
+  const { products, costCenters, matrizId, getStock, getMinStock, activeCenterId, movements } = useApp();
   const { toast } = useToast();
   const [selected, setSelected] = useState<Record<string, OrderItem>>({});
 
@@ -40,14 +40,30 @@ export default function PurchaseOrderPage() {
     ? (matrizId ? 'Matriz (Consolidado)' : 'Consolidado')
     : (costCenters.find(c => c.id === scope)?.name || '—');
 
+  // Last purchase price per product (most recent 'entrada' with unitCost)
+  const lastCostByProduct = useMemo(() => {
+    const map: Record<string, number> = {};
+    const sorted = [...movements]
+      .filter(m => m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    for (const m of sorted) {
+      if (map[m.productId] == null) map[m.productId] = m.unitCost as number;
+    }
+    return map;
+  }, [movements]);
+
   const productsWithStock = useMemo(
     () => products.map(p => ({
       ...p,
       currentStock: getStock(p.id, scopeId),
       effectiveMin: getMinStock(p.id, scopeId),
+      lastCost: lastCostByProduct[p.id],
     })),
-    [products, getStock, getMinStock, scopeId]
+    [products, getStock, getMinStock, scopeId, lastCostByProduct]
   );
+
+  const formatBRL = (v?: number) =>
+    v == null ? '—' : v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const toggleProduct = (id: string) => {
     setSelected(prev => {
