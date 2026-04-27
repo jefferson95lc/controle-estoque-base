@@ -37,6 +37,7 @@ interface AppState {
   setProductMinStockForCenter: (productId: string, costCenterId: string, minStock: number | null) => Promise<boolean>;
   matrizId: string | null;
   filiais: CostCenter[];
+  isMaster: boolean;
 }
 
 const AppContext = createContext<AppState | null>(null);
