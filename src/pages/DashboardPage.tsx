@@ -84,6 +84,21 @@ export default function DashboardPage() {
         ))}
       </div>
 
+      <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/30">
+        <CardContent className="pt-6 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <DollarSign className="text-success" size={32} />
+            <div>
+              <p className="text-sm text-muted-foreground">Valor estimado em estoque ({scopeLabel})</p>
+              <p className="text-3xl font-heading font-bold text-success">{formatBRL(totalStockValue)}</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground max-w-xs text-right">
+            Calculado com base no <strong>último valor unitário de entrada</strong> de cada produto.
+          </p>
+        </CardContent>
+      </Card>
+
       {isConsolidated && filiais.length > 0 && (
         <Card>
           <CardHeader><CardTitle className="font-heading text-lg">Estoque por Filial</CardTitle></CardHeader>
