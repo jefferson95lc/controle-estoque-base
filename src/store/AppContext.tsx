@@ -93,6 +93,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         _user_id: userId, _role: "master",
       });
       const userIsMaster = !!isMasterData;
+      setIsMaster(userIsMaster);
 
       // Load user's allowed cost centers (for non-master)
       let allowedCenterIds: string[] | null = null;
