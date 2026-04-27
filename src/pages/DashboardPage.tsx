@@ -165,7 +165,7 @@ export default function DashboardPage() {
                         {m.type === 'transferencia'
                           ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
                           : getCenterName(m.costCenterId)}
-                        {' · '}{format(new Date(m.date), 'dd/MM HH:mm', { locale: ptBR })}
+                        {' · '}{format(new Date(m.date), 'dd/MM/yyyy', { locale: ptBR })}
                       </p>
                     </div>
                     <Badge variant={m.type === 'entrada' ? 'default' : m.type === 'saida' ? 'destructive' : 'secondary'}>
