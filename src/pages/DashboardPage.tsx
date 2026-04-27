@@ -145,16 +145,12 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">Nenhum produto abaixo do estoque mínimo.</p>
             ) : (
               <div className="space-y-2">
-                {lowStock.map(p => {
-                  const qty = getStock(p.id, activeCenterId);
-                  const min = getMinStock(p.id, activeCenterId);
-                  return (
-                    <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-destructive/10">
-                      <span className="text-sm font-medium">{p.name}</span>
-                      <span className="text-sm text-destructive font-semibold">{qty}/{min} {p.unit}</span>
-                    </div>
-                  );
-                })}
+                {lowStock.map(({ product: p, qty, min }) => (
+                  <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-destructive/10">
+                    <span className="text-sm font-medium">{p.name}</span>
+                    <span className="text-sm text-destructive font-semibold">{qty}/{min} {p.unit}</span>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
