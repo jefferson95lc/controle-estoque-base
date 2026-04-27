@@ -37,6 +37,7 @@ interface AppState {
   setProductMinStockForCenter: (productId: string, costCenterId: string, minStock: number | null) => Promise<boolean>;
   matrizId: string | null;
   filiais: CostCenter[];
+  isMaster: boolean;
 }
 
 const AppContext = createContext<AppState | null>(null);
@@ -67,6 +68,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [minStockByCenter, setMinStockByCenter] = useState<MinStockMap>({});
   const [activeCenterId, setActiveCenterId] = useState<string | null>(null);
+  const [isMaster, setIsMaster] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
   const stockByCenter = useMemo(() => buildStockMap(movements), [movements]);
@@ -91,6 +93,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         _user_id: userId, _role: "master",
       });
       const userIsMaster = !!isMasterData;
+      setIsMaster(userIsMaster);
 
       // Load user's allowed cost centers (for non-master)
       let allowedCenterIds: string[] | null = null;
@@ -402,6 +405,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProductMinStockForCenter,
       matrizId: matriz?.id || null,
       filiais,
+      isMaster,
     }}>
       {children}
     </AppContext.Provider>
