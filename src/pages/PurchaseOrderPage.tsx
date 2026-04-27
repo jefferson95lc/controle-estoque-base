@@ -40,17 +40,30 @@ export default function PurchaseOrderPage() {
     ? (matrizId ? 'Matriz (Consolidado)' : 'Consolidado')
     : (costCenters.find(c => c.id === scope)?.name || '—');
 
-  // Last purchase price per product (most recent 'entrada' with unitCost)
+  // Last purchase price per product, considering the selected scope (filial).
+  // - When scope is a specific filial: uses the most recent 'entrada' in THAT filial.
+  // - When scope is 'consolidado': uses the most recent 'entrada' across all filiais.
+  // Fallback: if no entry exists for the selected filial, uses the global last cost.
   const lastCostByProduct = useMemo(() => {
-    const map: Record<string, number> = {};
     const sorted = [...movements]
       .filter(m => m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    const globalMap: Record<string, number> = {};
     for (const m of sorted) {
-      if (map[m.productId] == null) map[m.productId] = m.unitCost as number;
+      if (globalMap[m.productId] == null) globalMap[m.productId] = m.unitCost as number;
     }
-    return map;
-  }, [movements]);
+
+    if (!scopeId) return globalMap;
+
+    const scopedMap: Record<string, number> = {};
+    for (const m of sorted) {
+      if (m.costCenterId !== scopeId) continue;
+      if (scopedMap[m.productId] == null) scopedMap[m.productId] = m.unitCost as number;
+    }
+    // Fallback to global when the filial has no recorded entry
+    return { ...globalMap, ...scopedMap };
+  }, [movements, scopeId]);
 
   const productsWithStock = useMemo(
     () => products.map(p => ({
