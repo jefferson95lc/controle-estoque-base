@@ -101,47 +101,49 @@ export default function PurchaseOrderPage() {
 
     const wb = XLSX.utils.book_new();
     const wsData: (string | number)[][] = [
-      ['Tipo de Material', 'Quantidade Esperada', 'Fornecedor 1', 'Fornecedor 2', 'Fornecedor 3', 'Melhor Preço', 'Melhor Fornecedor', 'Observações'],
+      ['Tipo de Material', 'Quantidade Esperada', 'Último Valor (R$)', 'Fornecedor 1', 'Fornecedor 2', 'Fornecedor 3', 'Melhor Preço', 'Melhor Fornecedor', 'Observações'],
     ];
 
     items.forEach(([id, item], idx) => {
       const product = products.find(p => p.id === id);
+      const lastCost = lastCostByProduct[id];
       wsData.push([
         product?.name || '—',
         item.quantity,
-        '', // Fornecedor 1
+        lastCost != null ? lastCost : '',
+        lastCost != null ? lastCost : '', // Fornecedor 1 pré-preenchido com último valor
         '', // Fornecedor 2
         '', // Fornecedor 3
-        '', // Melhor Preço (will be formula)
-        '', // Melhor Fornecedor (will be formula)
+        '', // Melhor Preço (formula)
+        '', // Melhor Fornecedor (formula)
         item.obs,
       ]);
     });
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    // Add formulas for each data row
+    // Add formulas for each data row (now Fornecedores estão em D, E, F)
     items.forEach((_entry, idx) => {
-      const row = idx + 2; // Excel row (1-indexed, +1 for header)
-      const c = `C${row}`, d = `D${row}`, e = `E${row}`;
+      const row = idx + 2;
+      const d = `D${row}`, e = `E${row}`, f = `F${row}`;
 
-      // Melhor Preço: MIN dos fornecedores preenchidos (ignora zeros/vazios)
-      ws[`F${row}`] = {
+      // Melhor Preço (G): MIN dos fornecedores preenchidos
+      ws[`G${row}`] = {
         t: 'n',
-        f: `IF(COUNTIF(${c}:${e},">0")=0,"",MIN(IF(${c}>0,${c},9999999),IF(${d}>0,${d},9999999),IF(${e}>0,${e},9999999)))`,
+        f: `IF(COUNTIF(${d}:${f},">0")=0,"",MIN(IF(${d}>0,${d},9999999),IF(${e}>0,${e},9999999),IF(${f}>0,${f},9999999)))`,
       };
 
-      // Melhor Fornecedor: nome da coluna com menor preço
-      ws[`G${row}`] = {
+      // Melhor Fornecedor (H)
+      ws[`H${row}`] = {
         t: 's',
-        f: `IF(F${row}="","",IF(F${row}=${c},"Fornecedor 1",IF(F${row}=${d},"Fornecedor 2",IF(F${row}=${e},"Fornecedor 3",""))))`,
+        f: `IF(G${row}="","",IF(G${row}=${d},"Fornecedor 1",IF(G${row}=${e},"Fornecedor 2",IF(G${row}=${f},"Fornecedor 3",""))))`,
       };
     });
 
-    // Column widths
     ws['!cols'] = [
       { wch: 35 }, // Tipo de Material
       { wch: 20 }, // Qtd Esperada
+      { wch: 16 }, // Último Valor
       { wch: 18 }, // Fornecedor 1
       { wch: 18 }, // Fornecedor 2
       { wch: 18 }, // Fornecedor 3
@@ -150,9 +152,8 @@ export default function PurchaseOrderPage() {
       { wch: 25 }, // Observações
     ];
 
-    // Set ref to include new column
     const lastRow = items.length + 1;
-    ws['!ref'] = `A1:H${lastRow}`;
+    ws['!ref'] = `A1:I${lastRow}`;
 
     XLSX.utils.book_append_sheet(wb, ws, 'Ordem de Compra');
 
@@ -209,6 +210,7 @@ export default function PurchaseOrderPage() {
                 <th className="text-left p-3 font-medium">SKU</th>
                 <th className="text-center p-3 font-medium">Estoque ({scopeLabel})</th>
                 <th className="text-center p-3 font-medium">Mín.</th>
+                <th className="text-right p-3 font-medium">Último valor</th>
                 <th className="text-center p-3 font-medium">Status</th>
                 <th className="text-center p-3 font-medium">Qtd. Esperada</th>
                 <th className="text-left p-3 font-medium">Observações</th>
@@ -227,6 +229,7 @@ export default function PurchaseOrderPage() {
                     <td className="p-3 text-muted-foreground font-mono text-xs">{p.sku}</td>
                     <td className={`p-3 text-center font-semibold ${isLow ? 'text-destructive' : ''}`}>{p.currentStock} {p.unit}</td>
                     <td className="p-3 text-center text-muted-foreground">{p.effectiveMin}</td>
+                    <td className="p-3 text-right text-muted-foreground">{formatBRL(p.lastCost)}</td>
                     <td className="p-3 text-center">
                       {isLow ? <Badge variant="destructive">Baixo</Badge> : <Badge variant="secondary">OK</Badge>}
                     </td>
@@ -252,7 +255,7 @@ export default function PurchaseOrderPage() {
                 );
               })}
               {products.length === 0 && (
-                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Nenhum produto cadastrado.</td></tr>
+                <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nenhum produto cadastrado.</td></tr>
               )}
             </tbody>
           </table>
