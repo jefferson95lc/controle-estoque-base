@@ -55,7 +55,7 @@ export default function ReportsPage() {
     const data = filteredMovements.map(m => {
       const total = m.type === 'entrada' && m.unitCost != null ? m.unitCost * m.quantity : null;
       return {
-        'Data': format(parseISO(m.date), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
+        'Data': format(parseISO(m.date), 'dd/MM/yyyy', { locale: ptBR }),
         'Produto': getProductName(m.productId),
         'Tipo': m.type === 'entrada' ? 'Entrada' : m.type === 'saida' ? 'Saída' : 'Transferência',
         'Centro de Custo': m.type === 'transferencia'
@@ -135,7 +135,7 @@ export default function ReportsPage() {
                 const total = m.type === 'entrada' && m.unitCost != null ? m.unitCost * m.quantity : null;
                 return (
                   <tr key={m.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                    <td className="p-3 text-muted-foreground">{format(parseISO(m.date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</td>
+                    <td className="p-3 text-muted-foreground">{format(parseISO(m.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
                     <td className="p-3 font-medium">{getProductName(m.productId)}</td>
                     <td className="p-3 text-center">
                       <Badge variant={m.type === 'entrada' ? 'default' : m.type === 'saida' ? 'destructive' : 'secondary'}>
