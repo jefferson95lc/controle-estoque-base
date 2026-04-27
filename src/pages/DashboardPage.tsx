@@ -15,17 +15,7 @@ export default function DashboardPage() {
     ? (matrizId ? 'Matriz (Consolidado)' : 'Consolidado')
     : (costCenters.find(c => c.id === activeCenterId)?.name || '—');
 
-  const lowStock = products
-    .filter(p => getStock(p.id, activeCenterId) <= getMinStock(p.id, activeCenterId))
-    .map(p => {
-      const qty = getStock(p.id, activeCenterId);
-      const min = getMinStock(p.id, activeCenterId);
-      // Urgência: % de déficit em relação ao mínimo (mais negativo = mais urgente)
-      // Se min = 0, usa qty negativa para ordenar; senão usa ratio
-      const ratio = min > 0 ? qty / min : qty;
-      return { product: p, qty, min, ratio };
-    })
-    .sort((a, b) => a.ratio - b.ratio);
+  const lowStock = products.filter(p => getStock(p.id, activeCenterId) <= getMinStock(p.id, activeCenterId));
 
   const scopedMovements = isConsolidated
     ? movements
@@ -145,12 +135,16 @@ export default function DashboardPage() {
               <p className="text-sm text-muted-foreground">Nenhum produto abaixo do estoque mínimo.</p>
             ) : (
               <div className="space-y-2">
-                {lowStock.map(({ product: p, qty, min }) => (
-                  <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-destructive/10">
-                    <span className="text-sm font-medium">{p.name}</span>
-                    <span className="text-sm text-destructive font-semibold">{qty}/{min} {p.unit}</span>
-                  </div>
-                ))}
+                {lowStock.map(p => {
+                  const qty = getStock(p.id, activeCenterId);
+                  const min = getMinStock(p.id, activeCenterId);
+                  return (
+                    <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-destructive/10">
+                      <span className="text-sm font-medium">{p.name}</span>
+                      <span className="text-sm text-destructive font-semibold">{qty}/{min} {p.unit}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
