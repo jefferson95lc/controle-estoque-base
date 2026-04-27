@@ -1,6 +1,7 @@
+import { useMemo } from 'react';
 import { useApp } from '@/store/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, AlertTriangle, ArrowUpCircle, ArrowDownCircle, Building2 } from 'lucide-react';
+import { Package, AlertTriangle, ArrowUpCircle, ArrowDownCircle, Building2, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +24,30 @@ export default function DashboardPage() {
   const recentMovements = [...scopedMovements].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
   const totalEntradas = scopedMovements.filter(m => m.type === 'entrada').length;
   const totalSaidas = scopedMovements.filter(m => m.type === 'saida').length;
+
+  // Last unit cost per product (most recent entrada with unitCost) — global reference
+  const lastCostByProduct = useMemo(() => {
+    const map: Record<string, number> = {};
+    const sorted = [...movements]
+      .filter(m => m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    for (const m of sorted) {
+      if (map[m.productId] == null) map[m.productId] = m.unitCost as number;
+    }
+    return map;
+  }, [movements]);
+
+  // Valor total em estoque no escopo atual = soma(estoque_atual_no_escopo × último_custo)
+  const totalStockValue = useMemo(() => {
+    return products.reduce((sum, p) => {
+      const qty = getStock(p.id, activeCenterId);
+      const cost = lastCostByProduct[p.id];
+      if (qty <= 0 || cost == null) return sum;
+      return sum + qty * cost;
+    }, 0);
+  }, [products, getStock, activeCenterId, lastCostByProduct]);
+
+  const formatBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const stats = [
     { label: 'Produtos', value: products.length, icon: Package, color: 'text-primary' },
