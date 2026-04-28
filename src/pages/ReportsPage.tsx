@@ -109,39 +109,75 @@ export default function ReportsPage() {
           <Download className="h-4 w-4 mr-2" /> Exportar Excel
         </Button>
         {isMaster && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={movements.length === 0} className="self-end">
-                <Trash2 className="h-4 w-4 mr-2" /> Limpar Histórico
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Limpar todo o histórico de movimentações?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta ação removerá <strong>todas</strong> as entradas, saídas e transferências de estoque
-                  de <strong>todas as filiais</strong>. Os saldos de estoque serão zerados.
-                  Esta operação é <strong>irreversível</strong>.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={async () => {
-                    const res = await clearAllMovements();
-                    if (res.ok) {
-                      toast({ title: 'Histórico limpo', description: 'Todas as movimentações foram removidas.' });
-                    } else {
-                      toast({ title: 'Erro', description: res.error || 'Falha ao limpar histórico.', variant: 'destructive' });
-                    }
-                  }}
-                >
-                  Sim, limpar tudo
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={selectedIds.size === 0} className="self-end">
+                  <Trash2 className="h-4 w-4 mr-2" /> Excluir Selecionados ({selectedIds.size})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir lançamentos selecionados?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Você está prestes a excluir <strong>{selectedIds.size}</strong> lançamento(s).
+                    Os saldos de estoque serão recalculados automaticamente. Esta ação é <strong>irreversível</strong>.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      const ids = Array.from(selectedIds);
+                      const res = await deleteMovements(ids);
+                      if (res.ok) {
+                        setSelectedIds(new Set());
+                        toast({ title: 'Lançamentos excluídos', description: `${ids.length} removido(s).` });
+                      } else {
+                        toast({ title: 'Erro', description: res.error || 'Falha ao excluir.', variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    Sim, excluir selecionados
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={movements.length === 0} className="self-end">
+                  <Trash2 className="h-4 w-4 mr-2" /> Limpar Histórico
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Limpar todo o histórico de movimentações?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação removerá <strong>todas</strong> as entradas, saídas e transferências de estoque
+                    de <strong>todas as filiais</strong>. Os saldos de estoque serão zerados.
+                    Esta operação é <strong>irreversível</strong>.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      const res = await clearAllMovements();
+                      if (res.ok) {
+                        toast({ title: 'Histórico limpo', description: 'Todas as movimentações foram removidas.' });
+                      } else {
+                        toast({ title: 'Erro', description: res.error || 'Falha ao limpar histórico.', variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    Sim, limpar tudo
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         )}
       </div>
 
