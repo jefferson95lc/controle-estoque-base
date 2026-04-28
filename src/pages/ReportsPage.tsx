@@ -18,11 +18,12 @@ import {
 import { toast } from '@/hooks/use-toast';
 
 export default function ReportsPage() {
-  const { movements, products, costCenters, matrizId, isMaster, clearAllMovements } = useApp();
+  const { movements, products, costCenters, matrizId, isMaster, clearAllMovements, deleteMovements } = useApp();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [centerFilter, setCenterFilter] = useState<string>('all');
   const [userMap, setUserMap] = useState<Record<string, string>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Load user emails for display
   useEffect(() => {
@@ -108,39 +109,75 @@ export default function ReportsPage() {
           <Download className="h-4 w-4 mr-2" /> Exportar Excel
         </Button>
         {isMaster && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={movements.length === 0} className="self-end">
-                <Trash2 className="h-4 w-4 mr-2" /> Limpar Histórico
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Limpar todo o histórico de movimentações?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta ação removerá <strong>todas</strong> as entradas, saídas e transferências de estoque
-                  de <strong>todas as filiais</strong>. Os saldos de estoque serão zerados.
-                  Esta operação é <strong>irreversível</strong>.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={async () => {
-                    const res = await clearAllMovements();
-                    if (res.ok) {
-                      toast({ title: 'Histórico limpo', description: 'Todas as movimentações foram removidas.' });
-                    } else {
-                      toast({ title: 'Erro', description: res.error || 'Falha ao limpar histórico.', variant: 'destructive' });
-                    }
-                  }}
-                >
-                  Sim, limpar tudo
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={selectedIds.size === 0} className="self-end">
+                  <Trash2 className="h-4 w-4 mr-2" /> Excluir Selecionados ({selectedIds.size})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir lançamentos selecionados?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Você está prestes a excluir <strong>{selectedIds.size}</strong> lançamento(s).
+                    Os saldos de estoque serão recalculados automaticamente. Esta ação é <strong>irreversível</strong>.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      const ids = Array.from(selectedIds);
+                      const res = await deleteMovements(ids);
+                      if (res.ok) {
+                        setSelectedIds(new Set());
+                        toast({ title: 'Lançamentos excluídos', description: `${ids.length} removido(s).` });
+                      } else {
+                        toast({ title: 'Erro', description: res.error || 'Falha ao excluir.', variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    Sim, excluir selecionados
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={movements.length === 0} className="self-end">
+                  <Trash2 className="h-4 w-4 mr-2" /> Limpar Histórico
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Limpar todo o histórico de movimentações?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação removerá <strong>todas</strong> as entradas, saídas e transferências de estoque
+                    de <strong>todas as filiais</strong>. Os saldos de estoque serão zerados.
+                    Esta operação é <strong>irreversível</strong>.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      const res = await clearAllMovements();
+                      if (res.ok) {
+                        toast({ title: 'Histórico limpo', description: 'Todas as movimentações foram removidas.' });
+                      } else {
+                        toast({ title: 'Erro', description: res.error || 'Falha ao limpar histórico.', variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    Sim, limpar tudo
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         )}
       </div>
 
@@ -159,6 +196,19 @@ export default function ReportsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
+                {isMaster && (
+                  <th className="text-center p-3 font-medium w-10">
+                    <input
+                      type="checkbox"
+                      aria-label="Selecionar todos"
+                      checked={filteredMovements.length > 0 && filteredMovements.every(m => selectedIds.has(m.id))}
+                      onChange={e => {
+                        if (e.target.checked) setSelectedIds(new Set(filteredMovements.map(m => m.id)));
+                        else setSelectedIds(new Set());
+                      }}
+                    />
+                  </th>
+                )}
                 <th className="text-left p-3 font-medium">Data</th>
                 <th className="text-left p-3 font-medium">Produto</th>
                 <th className="text-center p-3 font-medium">Tipo</th>
@@ -173,8 +223,25 @@ export default function ReportsPage() {
             <tbody>
               {filteredMovements.map(m => {
                 const total = m.type === 'entrada' && m.unitCost != null ? m.unitCost * m.quantity : null;
+                const checked = selectedIds.has(m.id);
                 return (
                   <tr key={m.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                    {isMaster && (
+                      <td className="p-3 text-center">
+                        <input
+                          type="checkbox"
+                          aria-label="Selecionar lançamento"
+                          checked={checked}
+                          onChange={e => {
+                            setSelectedIds(prev => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(m.id); else next.delete(m.id);
+                              return next;
+                            });
+                          }}
+                        />
+                      </td>
+                    )}
                     <td className="p-3 text-muted-foreground">{format(parseISO(m.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
                     <td className="p-3 font-medium">{getProductName(m.productId)}</td>
                     <td className="p-3 text-center">
@@ -196,7 +263,7 @@ export default function ReportsPage() {
                 );
               })}
               {filteredMovements.length === 0 && (
-                <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
+                <tr><td colSpan={isMaster ? 10 : 9} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
               )}
             </tbody>
           </table>
