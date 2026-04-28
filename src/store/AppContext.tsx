@@ -405,6 +405,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   }, [isMaster]);
 
+  const deleteMovements = useCallback(async (ids: string[]): Promise<{ ok: boolean; error?: string }> => {
+    if (!isMaster) return { ok: false, error: 'Apenas usuário Master pode excluir lançamentos.' };
+    if (!ids.length) return { ok: false, error: 'Nenhum lançamento selecionado.' };
+    const { error } = await supabase.from('stock_movements').delete().in('id', ids);
+    if (error) return { ok: false, error: error.message };
+    setMovements(prev => prev.filter(m => !ids.includes(m.id)));
+    return { ok: true };
+  }, [isMaster]);
+
   return (
     <AppContext.Provider value={{
       products, movements, costCenters, categories, stockByCenter, loading,
@@ -417,6 +426,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       getMinStock,
       setProductMinStockForCenter,
       clearAllMovements,
+      deleteMovements,
       matrizId: matriz?.id || null,
       filiais,
       isMaster,
