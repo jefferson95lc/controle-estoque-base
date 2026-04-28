@@ -18,11 +18,12 @@ import {
 import { toast } from '@/hooks/use-toast';
 
 export default function ReportsPage() {
-  const { movements, products, costCenters, matrizId, isMaster, clearAllMovements } = useApp();
+  const { movements, products, costCenters, matrizId, isMaster, clearAllMovements, deleteMovements } = useApp();
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [centerFilter, setCenterFilter] = useState<string>('all');
   const [userMap, setUserMap] = useState<Record<string, string>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Load user emails for display
   useEffect(() => {
