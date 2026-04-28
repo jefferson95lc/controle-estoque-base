@@ -196,6 +196,19 @@ export default function ReportsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
+                {isMaster && (
+                  <th className="text-center p-3 font-medium w-10">
+                    <input
+                      type="checkbox"
+                      aria-label="Selecionar todos"
+                      checked={filteredMovements.length > 0 && filteredMovements.every(m => selectedIds.has(m.id))}
+                      onChange={e => {
+                        if (e.target.checked) setSelectedIds(new Set(filteredMovements.map(m => m.id)));
+                        else setSelectedIds(new Set());
+                      }}
+                    />
+                  </th>
+                )}
                 <th className="text-left p-3 font-medium">Data</th>
                 <th className="text-left p-3 font-medium">Produto</th>
                 <th className="text-center p-3 font-medium">Tipo</th>
@@ -210,8 +223,25 @@ export default function ReportsPage() {
             <tbody>
               {filteredMovements.map(m => {
                 const total = m.type === 'entrada' && m.unitCost != null ? m.unitCost * m.quantity : null;
+                const checked = selectedIds.has(m.id);
                 return (
                   <tr key={m.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+                    {isMaster && (
+                      <td className="p-3 text-center">
+                        <input
+                          type="checkbox"
+                          aria-label="Selecionar lançamento"
+                          checked={checked}
+                          onChange={e => {
+                            setSelectedIds(prev => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(m.id); else next.delete(m.id);
+                              return next;
+                            });
+                          }}
+                        />
+                      </td>
+                    )}
                     <td className="p-3 text-muted-foreground">{format(parseISO(m.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
                     <td className="p-3 font-medium">{getProductName(m.productId)}</td>
                     <td className="p-3 text-center">
@@ -233,7 +263,7 @@ export default function ReportsPage() {
                 );
               })}
               {filteredMovements.length === 0 && (
-                <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
+                <tr><td colSpan={isMaster ? 10 : 9} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
               )}
             </tbody>
           </table>
