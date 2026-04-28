@@ -107,6 +107,41 @@ export default function ReportsPage() {
         <Button onClick={exportToExcel} disabled={filteredMovements.length === 0} className="self-end">
           <Download className="h-4 w-4 mr-2" /> Exportar Excel
         </Button>
+        {isMaster && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" disabled={movements.length === 0} className="self-end">
+                <Trash2 className="h-4 w-4 mr-2" /> Limpar Histórico
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Limpar todo o histórico de movimentações?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação removerá <strong>todas</strong> as entradas, saídas e transferências de estoque
+                  de <strong>todas as filiais</strong>. Os saldos de estoque serão zerados.
+                  Esta operação é <strong>irreversível</strong>.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={async () => {
+                    const res = await clearAllMovements();
+                    if (res.ok) {
+                      toast({ title: 'Histórico limpo', description: 'Todas as movimentações foram removidas.' });
+                    } else {
+                      toast({ title: 'Erro', description: res.error || 'Falha ao limpar histórico.', variant: 'destructive' });
+                    }
+                  }}
+                >
+                  Sim, limpar tudo
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       <Card className="bg-success/5 border-success/30">
