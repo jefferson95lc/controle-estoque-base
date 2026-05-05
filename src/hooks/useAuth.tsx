@@ -22,62 +22,92 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+    const clearSupabaseStorage = () => {
+      try {
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith("sb-") || k.includes("supabase.auth"))
+          .forEach((k) => localStorage.removeItem(k));
+      } catch {}
+    };
+
+    const finishLoading = () => {
+      if (mounted) setLoading(false);
+    };
+
+    // Failsafe: nunca deixar a UI presa em "Carregando..."
+    const safety = setTimeout(finishLoading, 4000);
+
+    const applySession = async (s: Session | null) => {
       if (!mounted) return;
-      // Trata refresh token inválido sem travar a UI
-      if (event === "TOKEN_REFRESHED" && !s) {
-        setSession(null);
-        setUser(null);
-        setIsMaster(false);
-        return;
-      }
       setSession(s);
       setUser(s?.user ?? null);
       if (s?.user) {
-        setTimeout(async () => {
+        try {
           const { data } = await supabase.rpc("has_role", {
-            _user_id: s.user.id, _role: "master",
+            _user_id: s.user.id,
+            _role: "master",
           });
           if (mounted) setIsMaster(!!data);
-        }, 0);
+        } catch {
+          if (mounted) setIsMaster(false);
+        }
       } else {
         setIsMaster(false);
       }
+    };
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      if (!mounted) return;
+      if (
+        (event === "TOKEN_REFRESHED" && !s) ||
+        event === "SIGNED_OUT"
+      ) {
+        clearSupabaseStorage();
+        setSession(null);
+        setUser(null);
+        setIsMaster(false);
+        finishLoading();
+        return;
+      }
+      // Não usar await direto aqui (evita deadlock no listener)
+      setTimeout(() => {
+        applySession(s).finally(finishLoading);
+      }, 0);
     });
 
-    supabase.auth.getSession()
+    supabase.auth
+      .getSession()
       .then(async ({ data: { session: s }, error }) => {
         if (!mounted) return;
         if (error) {
-          // Sessão corrompida / refresh token inválido — limpa storage
-          try { await supabase.auth.signOut(); } catch {}
+          clearSupabaseStorage();
+          try {
+            await supabase.auth.signOut();
+          } catch {}
           setSession(null);
           setUser(null);
           setIsMaster(false);
-          setLoading(false);
+          finishLoading();
           return;
         }
-        setSession(s);
-        setUser(s?.user ?? null);
-        if (s?.user) {
-          const { data } = await supabase.rpc("has_role", {
-            _user_id: s.user.id, _role: "master",
-          });
-          if (mounted) setIsMaster(!!data);
-        }
-        setLoading(false);
+        await applySession(s);
+        finishLoading();
       })
       .catch(async () => {
-        try { await supabase.auth.signOut(); } catch {}
+        clearSupabaseStorage();
+        try {
+          await supabase.auth.signOut();
+        } catch {}
         if (!mounted) return;
         setSession(null);
         setUser(null);
         setIsMaster(false);
-        setLoading(false);
+        finishLoading();
       });
 
     return () => {
       mounted = false;
+      clearTimeout(safety);
       sub.subscription.unsubscribe();
     };
   }, []);
