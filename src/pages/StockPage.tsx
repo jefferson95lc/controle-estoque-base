@@ -315,7 +315,7 @@ export default function StockPage() {
               <Label>Observação (opcional)</Label>
               <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo da transferência" />
             </div>
-            <Button className="w-full" onClick={handleTransfer}>Registrar Transferência</Button>
+            <Button className="w-full" onClick={requestTransfer}>Registrar Transferência</Button>
           </div>
         </DialogContent>
       </Dialog>
