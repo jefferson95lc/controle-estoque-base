@@ -237,7 +237,7 @@ export default function StockPage() {
                 <SelectContent>{IN_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button className="w-full" onClick={handleIn}>Registrar Entrada</Button>
+            <Button className="w-full" onClick={requestIn}>Registrar Entrada</Button>
           </div>
         </DialogContent>
       </Dialog>
