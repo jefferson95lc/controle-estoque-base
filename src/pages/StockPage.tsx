@@ -273,7 +273,7 @@ export default function StockPage() {
                 <SelectContent>{OUT_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button className="w-full" onClick={handleOut}>Registrar Saída</Button>
+            <Button className="w-full" onClick={requestOut}>Registrar Saída</Button>
           </div>
         </DialogContent>
       </Dialog>
