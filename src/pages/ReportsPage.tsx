@@ -222,7 +222,7 @@ export default function ReportsPage() {
             </thead>
             <tbody>
               {filteredMovements.map(m => {
-                const total = m.type === 'entrada' && m.unitCost != null ? m.unitCost * m.quantity : null;
+                const total = (m.type === 'entrada' || m.type === 'transferencia') && m.unitCost != null ? m.unitCost * m.quantity : null;
                 const checked = selectedIds.has(m.id);
                 return (
                   <tr key={m.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
