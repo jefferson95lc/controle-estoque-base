@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +41,9 @@ export default function StockPage() {
   const [centerId, setCenterId] = useState<string>('');
   const [destCenterId, setDestCenterId] = useState<string>('');
   const [unitCost, setUnitCost] = useState<string>('');
+
+  const [confirmType, setConfirmType] = useState<null | 'entrada' | 'saida' | 'transferencia'>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const isConsolidated = !activeCenterId || activeCenterId === matrizId;
   const viewingCenter = isConsolidated ? null : costCenters.find(c => c.id === activeCenterId) || null;
@@ -83,13 +87,37 @@ export default function StockPage() {
     setTransferOpen(true);
   };
 
-  const handleIn = async () => {
-    if (!productId || !reason || quantity <= 0 || !centerId) return;
+  const requestIn = () => {
+    if (!productId || !reason || quantity <= 0 || !centerId) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos.', variant: 'destructive' });
+      return;
+    }
     const cost = parseFloat(unitCost.replace(',', '.'));
     if (!unitCost || isNaN(cost) || cost <= 0) {
       toast({ title: 'Valor obrigatório', description: 'Informe o valor unitário do produto.', variant: 'destructive' });
       return;
     }
+    setConfirmType('entrada');
+  };
+
+  const requestOut = () => {
+    if (!productId || !reason || quantity <= 0 || !centerId) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos.', variant: 'destructive' });
+      return;
+    }
+    setConfirmType('saida');
+  };
+
+  const requestTransfer = () => {
+    if (!productId || !centerId || !destCenterId || centerId === destCenterId || quantity <= 0) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos corretamente.', variant: 'destructive' });
+      return;
+    }
+    setConfirmType('transferencia');
+  };
+
+  const handleIn = async () => {
+    const cost = parseFloat(unitCost.replace(',', '.'));
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
     const ok = await addStockIn(productId, quantity, reason, centerId, dateISO, cost);
     if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar.', variant: 'destructive' }); return; }
@@ -98,7 +126,6 @@ export default function StockPage() {
   };
 
   const handleOut = async () => {
-    if (!productId || !reason || quantity <= 0 || !centerId) return;
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
     const ok = await addStockOut(productId, quantity, reason, centerId, dateISO);
     if (!ok) { toast({ title: 'Erro', description: 'Estoque insuficiente nessa filial.', variant: 'destructive' }); return; }
@@ -107,13 +134,29 @@ export default function StockPage() {
   };
 
   const handleTransfer = async () => {
-    if (!productId || !centerId || !destCenterId || centerId === destCenterId || quantity <= 0) return;
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
     const ok = await transferStock(productId, quantity, centerId, destCenterId, reason, dateISO);
     if (!ok) { toast({ title: 'Erro', description: 'Estoque insuficiente na filial de origem.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Transferência registrada.' });
     setTransferOpen(false); resetForm();
   };
+
+  const confirmExecute = async () => {
+    setSubmitting(true);
+    try {
+      if (confirmType === 'entrada') await handleIn();
+      else if (confirmType === 'saida') await handleOut();
+      else if (confirmType === 'transferencia') await handleTransfer();
+    } finally {
+      setSubmitting(false);
+      setConfirmType(null);
+    }
+  };
+
+  const productName = products.find(p => p.id === productId)?.name || '—';
+  const productUnit = products.find(p => p.id === productId)?.unit || '';
+  const centerName = costCenters.find(c => c.id === centerId)?.name || '—';
+  const destName = costCenters.find(c => c.id === destCenterId)?.name || '—';
 
   return (
     <div className="space-y-6">
@@ -194,7 +237,7 @@ export default function StockPage() {
                 <SelectContent>{IN_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button className="w-full" onClick={handleIn}>Registrar Entrada</Button>
+            <Button className="w-full" onClick={requestIn}>Registrar Entrada</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -230,7 +273,7 @@ export default function StockPage() {
                 <SelectContent>{OUT_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button className="w-full" onClick={handleOut}>Registrar Saída</Button>
+            <Button className="w-full" onClick={requestOut}>Registrar Saída</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -272,7 +315,7 @@ export default function StockPage() {
               <Label>Observação (opcional)</Label>
               <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo da transferência" />
             </div>
-            <Button className="w-full" onClick={handleTransfer}>Registrar Transferência</Button>
+            <Button className="w-full" onClick={requestTransfer}>Registrar Transferência</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -355,6 +398,45 @@ export default function StockPage() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmType !== null} onOpenChange={(v) => !v && !submitting && setConfirmType(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading">
+              Confirmar {confirmType === 'entrada' ? 'Entrada' : confirmType === 'saida' ? 'Saída' : 'Transferência'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>Revise os dados antes de efetivar o lançamento:</p>
+                <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+                  <div><span className="text-muted-foreground">Produto:</span> <strong>{productName}</strong></div>
+                  <div><span className="text-muted-foreground">Quantidade:</span> <strong>{quantity} {productUnit}</strong></div>
+                  {confirmType === 'transferencia' ? (
+                    <>
+                      <div><span className="text-muted-foreground">Origem:</span> <strong>{centerName}</strong></div>
+                      <div><span className="text-muted-foreground">Destino:</span> <strong>{destName}</strong></div>
+                    </>
+                  ) : (
+                    <div><span className="text-muted-foreground">Filial:</span> <strong>{centerName}</strong></div>
+                  )}
+                  {confirmType === 'entrada' && (
+                    <div><span className="text-muted-foreground">Valor unitário:</span> <strong>{(parseFloat((unitCost || '0').replace(',', '.')) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
+                  )}
+                  <div><span className="text-muted-foreground">Data:</span> <strong>{movDate}</strong></div>
+                  {reason && <div><span className="text-muted-foreground">Motivo:</span> <strong>{reason}</strong></div>}
+                </div>
+                <p className="text-xs text-muted-foreground">Esta ação será registrada no histórico.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); confirmExecute(); }} disabled={submitting}>
+              {submitting ? 'Registrando...' : 'Confirmar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
