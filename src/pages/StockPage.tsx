@@ -398,6 +398,45 @@ export default function StockPage() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmType !== null} onOpenChange={(v) => !v && !submitting && setConfirmType(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading">
+              Confirmar {confirmType === 'entrada' ? 'Entrada' : confirmType === 'saida' ? 'Saída' : 'Transferência'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>Revise os dados antes de efetivar o lançamento:</p>
+                <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+                  <div><span className="text-muted-foreground">Produto:</span> <strong>{productName}</strong></div>
+                  <div><span className="text-muted-foreground">Quantidade:</span> <strong>{quantity} {productUnit}</strong></div>
+                  {confirmType === 'transferencia' ? (
+                    <>
+                      <div><span className="text-muted-foreground">Origem:</span> <strong>{centerName}</strong></div>
+                      <div><span className="text-muted-foreground">Destino:</span> <strong>{destName}</strong></div>
+                    </>
+                  ) : (
+                    <div><span className="text-muted-foreground">Filial:</span> <strong>{centerName}</strong></div>
+                  )}
+                  {confirmType === 'entrada' && (
+                    <div><span className="text-muted-foreground">Valor unitário:</span> <strong>{(parseFloat((unitCost || '0').replace(',', '.')) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
+                  )}
+                  <div><span className="text-muted-foreground">Data:</span> <strong>{movDate}</strong></div>
+                  {reason && <div><span className="text-muted-foreground">Motivo:</span> <strong>{reason}</strong></div>}
+                </div>
+                <p className="text-xs text-muted-foreground">Esta ação será registrada no histórico.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); confirmExecute(); }} disabled={submitting}>
+              {submitting ? 'Registrando...' : 'Confirmar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
