@@ -42,6 +42,9 @@ export default function StockPage() {
   const [destCenterId, setDestCenterId] = useState<string>('');
   const [unitCost, setUnitCost] = useState<string>('');
 
+  const [confirmType, setConfirmType] = useState<null | 'entrada' | 'saida' | 'transferencia'>(null);
+  const [submitting, setSubmitting] = useState(false);
+
   const isConsolidated = !activeCenterId || activeCenterId === matrizId;
   const viewingCenter = isConsolidated ? null : costCenters.find(c => c.id === activeCenterId) || null;
 
