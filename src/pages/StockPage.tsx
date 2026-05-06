@@ -87,13 +87,37 @@ export default function StockPage() {
     setTransferOpen(true);
   };
 
-  const handleIn = async () => {
-    if (!productId || !reason || quantity <= 0 || !centerId) return;
+  const requestIn = () => {
+    if (!productId || !reason || quantity <= 0 || !centerId) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos.', variant: 'destructive' });
+      return;
+    }
     const cost = parseFloat(unitCost.replace(',', '.'));
     if (!unitCost || isNaN(cost) || cost <= 0) {
       toast({ title: 'Valor obrigatório', description: 'Informe o valor unitário do produto.', variant: 'destructive' });
       return;
     }
+    setConfirmType('entrada');
+  };
+
+  const requestOut = () => {
+    if (!productId || !reason || quantity <= 0 || !centerId) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos.', variant: 'destructive' });
+      return;
+    }
+    setConfirmType('saida');
+  };
+
+  const requestTransfer = () => {
+    if (!productId || !centerId || !destCenterId || centerId === destCenterId || quantity <= 0) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos corretamente.', variant: 'destructive' });
+      return;
+    }
+    setConfirmType('transferencia');
+  };
+
+  const handleIn = async () => {
+    const cost = parseFloat(unitCost.replace(',', '.'));
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
     const ok = await addStockIn(productId, quantity, reason, centerId, dateISO, cost);
     if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar.', variant: 'destructive' }); return; }
@@ -102,7 +126,6 @@ export default function StockPage() {
   };
 
   const handleOut = async () => {
-    if (!productId || !reason || quantity <= 0 || !centerId) return;
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
     const ok = await addStockOut(productId, quantity, reason, centerId, dateISO);
     if (!ok) { toast({ title: 'Erro', description: 'Estoque insuficiente nessa filial.', variant: 'destructive' }); return; }
@@ -111,13 +134,29 @@ export default function StockPage() {
   };
 
   const handleTransfer = async () => {
-    if (!productId || !centerId || !destCenterId || centerId === destCenterId || quantity <= 0) return;
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
     const ok = await transferStock(productId, quantity, centerId, destCenterId, reason, dateISO);
     if (!ok) { toast({ title: 'Erro', description: 'Estoque insuficiente na filial de origem.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Transferência registrada.' });
     setTransferOpen(false); resetForm();
   };
+
+  const confirmExecute = async () => {
+    setSubmitting(true);
+    try {
+      if (confirmType === 'entrada') await handleIn();
+      else if (confirmType === 'saida') await handleOut();
+      else if (confirmType === 'transferencia') await handleTransfer();
+    } finally {
+      setSubmitting(false);
+      setConfirmType(null);
+    }
+  };
+
+  const productName = products.find(p => p.id === productId)?.name || '—';
+  const productUnit = products.find(p => p.id === productId)?.unit || '';
+  const centerName = costCenters.find(c => c.id === centerId)?.name || '—';
+  const destName = costCenters.find(c => c.id === destCenterId)?.name || '—';
 
   return (
     <div className="space-y-6">
