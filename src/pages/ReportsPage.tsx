@@ -59,7 +59,8 @@ export default function ReportsPage() {
 
   const exportToExcel = () => {
     const data = filteredMovements.map(m => {
-      const total = m.type === 'entrada' && m.unitCost != null ? m.unitCost * m.quantity : null;
+      const hasValue = (m.type === 'entrada' || m.type === 'transferencia') && m.unitCost != null;
+      const total = hasValue ? (m.unitCost as number) * m.quantity : null;
       return {
         'Data': format(parseISO(m.date), 'dd/MM/yyyy', { locale: ptBR }),
         'Produto': getProductName(m.productId),
@@ -68,7 +69,7 @@ export default function ReportsPage() {
           ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
           : getCenterName(m.costCenterId),
         'Quantidade': m.quantity,
-        'Valor Unitário (R$)': m.type === 'entrada' && m.unitCost != null ? m.unitCost : '',
+        'Valor Unitário (R$)': hasValue ? m.unitCost : '',
         'Valor Total (R$)': total != null ? total : '',
         'Motivo': m.reason,
         'Usuário': getUserEmail(m.userId),
