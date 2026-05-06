@@ -59,7 +59,8 @@ export default function ReportsPage() {
 
   const exportToExcel = () => {
     const data = filteredMovements.map(m => {
-      const total = m.type === 'entrada' && m.unitCost != null ? m.unitCost * m.quantity : null;
+      const hasValue = (m.type === 'entrada' || m.type === 'transferencia') && m.unitCost != null;
+      const total = hasValue ? (m.unitCost as number) * m.quantity : null;
       return {
         'Data': format(parseISO(m.date), 'dd/MM/yyyy', { locale: ptBR }),
         'Produto': getProductName(m.productId),
@@ -68,7 +69,7 @@ export default function ReportsPage() {
           ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
           : getCenterName(m.costCenterId),
         'Quantidade': m.quantity,
-        'Valor Unitário (R$)': m.type === 'entrada' && m.unitCost != null ? m.unitCost : '',
+        'Valor Unitário (R$)': hasValue ? m.unitCost : '',
         'Valor Total (R$)': total != null ? total : '',
         'Motivo': m.reason,
         'Usuário': getUserEmail(m.userId),
@@ -222,7 +223,7 @@ export default function ReportsPage() {
             </thead>
             <tbody>
               {filteredMovements.map(m => {
-                const total = m.type === 'entrada' && m.unitCost != null ? m.unitCost * m.quantity : null;
+                const total = (m.type === 'entrada' || m.type === 'transferencia') && m.unitCost != null ? m.unitCost * m.quantity : null;
                 const checked = selectedIds.has(m.id);
                 return (
                   <tr key={m.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
@@ -255,7 +256,7 @@ export default function ReportsPage() {
                         : getCenterName(m.costCenterId)}
                     </td>
                     <td className="p-3 text-center font-semibold">{m.quantity}</td>
-                    <td className="p-3 text-right text-muted-foreground">{m.type === 'entrada' ? formatBRL(m.unitCost) : '—'}</td>
+                    <td className="p-3 text-right text-muted-foreground">{(m.type === 'entrada' || m.type === 'transferencia') ? formatBRL(m.unitCost) : '—'}</td>
                     <td className="p-3 text-right font-medium">{total != null ? formatBRL(total) : '—'}</td>
                     <td className="p-3 text-muted-foreground">{m.reason}</td>
                     <td className="p-3 text-muted-foreground">{getUserEmail(m.userId)}</td>

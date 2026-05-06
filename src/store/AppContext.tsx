@@ -385,14 +385,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!isFilial(fromId) || !isFilial(toId) || fromId === toId) return false;
     const current = (stockByCenter[productId]?.[fromId]) || 0;
     if (current < quantity) return false;
+    // Pega o último custo unitário conhecido do produto (prefere a filial de origem, fallback global)
+    const entradas = movements
+      .filter(m => m.productId === productId && m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const lastFromOrigin = entradas.find(m => m.costCenterId === fromId)?.unitCost;
+    const lastGlobal = entradas[0]?.unitCost;
+    const unitCost = lastFromOrigin ?? lastGlobal;
     const mov = await insertMovement({
       productId, type: 'transferencia', quantity,
       reason: reason || 'Transferência entre unidades',
       date: date || new Date().toISOString(),
       costCenterId: fromId, destinationCenterId: toId,
+      unitCost,
     });
     return !!mov;
-  }, [isFilial, stockByCenter, insertMovement]);
+  }, [isFilial, stockByCenter, movements, insertMovement]);
 
   const clearAllMovements = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
     if (!isMaster) return { ok: false, error: 'Apenas usuário Master pode limpar o histórico.' };
