@@ -327,7 +327,33 @@ export default function StockPage() {
                 <SelectContent>{IN_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button className="w-full" onClick={requestIn}>Registrar Entrada</Button>
+            {queueIn.length > 0 && (
+              <div className="rounded-md border bg-muted/20 p-2 space-y-1 max-h-40 overflow-y-auto">
+                <div className="text-xs font-medium text-muted-foreground px-1">Fila ({queueIn.length})</div>
+                {queueIn.map((it, i) => {
+                  const c = parseFloat(it.unitCost.replace(',', '.')) || 0;
+                  return (
+                    <div key={i} className="flex items-center justify-between gap-2 text-xs bg-background rounded px-2 py-1.5">
+                      <div className="flex-1 min-w-0 truncate">
+                        <strong>{productLabel(it.productId)}</strong> · {it.quantity} {productUnitOf(it.productId)} · {centerLabel(it.centerId)} · {(c * it.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setQueueIn(q => q.filter((_, idx) => idx !== i))}>
+                        <Trash2 size={12} />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={addInToQueue}><ListPlus size={16} className="mr-2" />Adicionar à fila</Button>
+              <Button onClick={requestIn}>Registrar agora</Button>
+            </div>
+            {queueIn.length > 0 && (
+              <Button className="w-full" variant="default" onClick={() => setConfirmBatch('entrada')}>
+                Confirmar fila ({queueIn.length} {queueIn.length === 1 ? 'item' : 'itens'})
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
