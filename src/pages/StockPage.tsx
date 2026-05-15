@@ -389,7 +389,30 @@ export default function StockPage() {
                 <SelectContent>{OUT_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button className="w-full" onClick={requestOut}>Registrar Saída</Button>
+            {queueOut.length > 0 && (
+              <div className="rounded-md border bg-muted/20 p-2 space-y-1 max-h-40 overflow-y-auto">
+                <div className="text-xs font-medium text-muted-foreground px-1">Fila ({queueOut.length})</div>
+                {queueOut.map((it, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 text-xs bg-background rounded px-2 py-1.5">
+                    <div className="flex-1 min-w-0 truncate">
+                      <strong>{productLabel(it.productId)}</strong> · {it.quantity} {productUnitOf(it.productId)} · {centerLabel(it.centerId)} · {it.reason}
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setQueueOut(q => q.filter((_, idx) => idx !== i))}>
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={addOutToQueue}><ListPlus size={16} className="mr-2" />Adicionar à fila</Button>
+              <Button onClick={requestOut}>Registrar agora</Button>
+            </div>
+            {queueOut.length > 0 && (
+              <Button className="w-full" onClick={() => setConfirmBatch('saida')}>
+                Confirmar fila ({queueOut.length} {queueOut.length === 1 ? 'item' : 'itens'})
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
