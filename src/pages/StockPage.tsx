@@ -418,7 +418,7 @@ export default function StockPage() {
       </Dialog>
 
       {/* Transferência */}
-      <Dialog open={transferOpen} onOpenChange={(v) => { setTransferOpen(v); if (!v) resetForm(); }}>
+      <Dialog open={transferOpen} onOpenChange={(v) => { setTransferOpen(v); if (!v) { resetForm(); setQueueTransfer([]); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle className="font-heading">Transferir entre Filiais</DialogTitle></DialogHeader>
           <div className="space-y-4">
