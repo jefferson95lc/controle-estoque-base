@@ -275,7 +275,7 @@ export default function StockPage() {
       )}
 
       {/* Entrada */}
-      <Dialog open={inOpen} onOpenChange={(v) => { setInOpen(v); if (!v) resetForm(); }}>
+      <Dialog open={inOpen} onOpenChange={(v) => { setInOpen(v); if (!v) { resetForm(); setQueueIn([]); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle className="font-heading">Registrar Entrada</DialogTitle></DialogHeader>
           <div className="space-y-4">
