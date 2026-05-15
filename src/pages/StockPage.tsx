@@ -359,7 +359,7 @@ export default function StockPage() {
       </Dialog>
 
       {/* Saída */}
-      <Dialog open={outOpen} onOpenChange={(v) => { setOutOpen(v); if (!v) resetForm(); }}>
+      <Dialog open={outOpen} onOpenChange={(v) => { setOutOpen(v); if (!v) { resetForm(); setQueueOut([]); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle className="font-heading">Registrar Saída</DialogTitle></DialogHeader>
           <div className="space-y-4">
