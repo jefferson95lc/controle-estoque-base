@@ -599,6 +599,45 @@ export default function StockPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={confirmBatch !== null} onOpenChange={(v) => !v && !submitting && setConfirmBatch(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading">
+              Confirmar fila de {confirmBatch === 'entrada' ? 'Entradas' : confirmBatch === 'saida' ? 'Saídas' : 'Transferências'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  {confirmBatch === 'entrada' && `Serão registradas ${queueIn.length} entrada(s) em sequência.`}
+                  {confirmBatch === 'saida' && `Serão registradas ${queueOut.length} saída(s) em sequência.`}
+                  {confirmBatch === 'transferencia' && `Serão registradas ${queueTransfer.length} transferência(s) em sequência.`}
+                </p>
+                <div className="rounded-md border bg-muted/30 p-3 max-h-60 overflow-y-auto space-y-1 text-xs">
+                  {confirmBatch === 'entrada' && queueIn.map((it, i) => (
+                    <div key={i}>{i + 1}. <strong>{productLabel(it.productId)}</strong> — {it.quantity} {productUnitOf(it.productId)} @ {centerLabel(it.centerId)}</div>
+                  ))}
+                  {confirmBatch === 'saida' && queueOut.map((it, i) => (
+                    <div key={i}>{i + 1}. <strong>{productLabel(it.productId)}</strong> — {it.quantity} {productUnitOf(it.productId)} @ {centerLabel(it.centerId)}</div>
+                  ))}
+                  {confirmBatch === 'transferencia' && queueTransfer.map((it, i) => (
+                    <div key={i}>{i + 1}. <strong>{productLabel(it.productId)}</strong> — {it.quantity} {productUnitOf(it.productId)} · {centerLabel(it.centerId)} → {centerLabel(it.destCenterId)}</div>
+                  ))}
+                </div>
+                {batchProgress && (
+                  <p className="text-xs text-muted-foreground">Progresso: {batchProgress.done}/{batchProgress.total}</p>
+                )}
+                <p className="text-xs text-muted-foreground">Itens com falha (ex.: estoque insuficiente) serão pulados e contabilizados ao final.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); executeBatch(); }} disabled={submitting}>
+              {submitting ? `Registrando... ${batchProgress ? `${batchProgress.done}/${batchProgress.total}` : ''}` : 'Confirmar todos'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
