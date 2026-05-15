@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Minus, AlertTriangle, ArrowLeftRight, Building2 } from 'lucide-react';
+import { Plus, Minus, AlertTriangle, ArrowLeftRight, Building2, Trash2, ListPlus } from 'lucide-react';
 import { StockBulkImport } from '@/components/StockBulkImport';
 import { ProductCombobox } from '@/components/ProductCombobox';
 import { MinStockCell } from '@/components/MinStockCell';
@@ -44,6 +44,16 @@ export default function StockPage() {
 
   const [confirmType, setConfirmType] = useState<null | 'entrada' | 'saida' | 'transferencia'>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Filas de lançamentos (carrinho local)
+  type QueueInItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string; unitCost: string };
+  type QueueOutItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string };
+  type QueueTransferItem = { productId: string; quantity: number; centerId: string; destCenterId: string; reason: string; movDate: string };
+  const [queueIn, setQueueIn] = useState<QueueInItem[]>([]);
+  const [queueOut, setQueueOut] = useState<QueueOutItem[]>([]);
+  const [queueTransfer, setQueueTransfer] = useState<QueueTransferItem[]>([]);
+  const [confirmBatch, setConfirmBatch] = useState<null | 'entrada' | 'saida' | 'transferencia'>(null);
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
 
   const isConsolidated = !activeCenterId || activeCenterId === matrizId;
   const viewingCenter = isConsolidated ? null : costCenters.find(c => c.id === activeCenterId) || null;
@@ -153,6 +163,86 @@ export default function StockPage() {
     }
   };
 
+  // ===== Carrinho / fila =====
+  const productLabel = (id: string) => products.find(p => p.id === id)?.name || '—';
+  const productUnitOf = (id: string) => products.find(p => p.id === id)?.unit || '';
+  const centerLabel = (id: string) => costCenters.find(c => c.id === id)?.name || '—';
+
+  const addInToQueue = () => {
+    if (!productId || !reason || quantity <= 0 || !centerId) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos.', variant: 'destructive' }); return;
+    }
+    const cost = parseFloat(unitCost.replace(',', '.'));
+    if (!unitCost || isNaN(cost) || cost <= 0) {
+      toast({ title: 'Valor obrigatório', description: 'Informe o valor unitário.', variant: 'destructive' }); return;
+    }
+    setQueueIn(q => [...q, { productId, quantity, reason, centerId, movDate, unitCost }]);
+    setProductId(''); setQuantity(1); setUnitCost('');
+  };
+  const addOutToQueue = () => {
+    if (!productId || !reason || quantity <= 0 || !centerId) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos.', variant: 'destructive' }); return;
+    }
+    setQueueOut(q => [...q, { productId, quantity, reason, centerId, movDate }]);
+    setProductId(''); setQuantity(1);
+  };
+  const addTransferToQueue = () => {
+    if (!productId || !centerId || !destCenterId || centerId === destCenterId || quantity <= 0) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos corretamente.', variant: 'destructive' }); return;
+    }
+    setQueueTransfer(q => [...q, { productId, quantity, centerId, destCenterId, reason, movDate }]);
+    setProductId(''); setQuantity(1);
+  };
+
+  const executeBatch = async () => {
+    setSubmitting(true);
+    let okCount = 0, failCount = 0;
+    try {
+      if (confirmBatch === 'entrada') {
+        setBatchProgress({ done: 0, total: queueIn.length });
+        for (let i = 0; i < queueIn.length; i++) {
+          const it = queueIn[i];
+          const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
+          const cost = parseFloat(it.unitCost.replace(',', '.'));
+          const ok = await addStockIn(it.productId, it.quantity, it.reason, it.centerId, dateISO, cost);
+          ok ? okCount++ : failCount++;
+          setBatchProgress({ done: i + 1, total: queueIn.length });
+        }
+        setQueueIn([]); setInOpen(false);
+      } else if (confirmBatch === 'saida') {
+        setBatchProgress({ done: 0, total: queueOut.length });
+        for (let i = 0; i < queueOut.length; i++) {
+          const it = queueOut[i];
+          const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
+          const ok = await addStockOut(it.productId, it.quantity, it.reason, it.centerId, dateISO);
+          ok ? okCount++ : failCount++;
+          setBatchProgress({ done: i + 1, total: queueOut.length });
+        }
+        setQueueOut([]); setOutOpen(false);
+      } else if (confirmBatch === 'transferencia') {
+        setBatchProgress({ done: 0, total: queueTransfer.length });
+        for (let i = 0; i < queueTransfer.length; i++) {
+          const it = queueTransfer[i];
+          const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
+          const ok = await transferStock(it.productId, it.quantity, it.centerId, it.destCenterId, it.reason, dateISO);
+          ok ? okCount++ : failCount++;
+          setBatchProgress({ done: i + 1, total: queueTransfer.length });
+        }
+        setQueueTransfer([]); setTransferOpen(false);
+      }
+      toast({
+        title: failCount === 0 ? 'Lançamentos efetivados' : 'Concluído com falhas',
+        description: `${okCount} sucesso(s)${failCount ? `, ${failCount} falha(s)` : ''}.`,
+        variant: failCount === 0 ? 'default' : 'destructive',
+      });
+      resetForm();
+    } finally {
+      setSubmitting(false);
+      setConfirmBatch(null);
+      setBatchProgress(null);
+    }
+  };
+
   const productName = products.find(p => p.id === productId)?.name || '—';
   const productUnit = products.find(p => p.id === productId)?.unit || '';
   const centerName = costCenters.find(c => c.id === centerId)?.name || '—';
@@ -185,7 +275,7 @@ export default function StockPage() {
       )}
 
       {/* Entrada */}
-      <Dialog open={inOpen} onOpenChange={(v) => { setInOpen(v); if (!v) resetForm(); }}>
+      <Dialog open={inOpen} onOpenChange={(v) => { setInOpen(v); if (!v) { resetForm(); setQueueIn([]); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle className="font-heading">Registrar Entrada</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -237,13 +327,39 @@ export default function StockPage() {
                 <SelectContent>{IN_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button className="w-full" onClick={requestIn}>Registrar Entrada</Button>
+            {queueIn.length > 0 && (
+              <div className="rounded-md border bg-muted/20 p-2 space-y-1 max-h-40 overflow-y-auto">
+                <div className="text-xs font-medium text-muted-foreground px-1">Fila ({queueIn.length})</div>
+                {queueIn.map((it, i) => {
+                  const c = parseFloat(it.unitCost.replace(',', '.')) || 0;
+                  return (
+                    <div key={i} className="flex items-center justify-between gap-2 text-xs bg-background rounded px-2 py-1.5">
+                      <div className="flex-1 min-w-0 truncate">
+                        <strong>{productLabel(it.productId)}</strong> · {it.quantity} {productUnitOf(it.productId)} · {centerLabel(it.centerId)} · {(c * it.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setQueueIn(q => q.filter((_, idx) => idx !== i))}>
+                        <Trash2 size={12} />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={addInToQueue}><ListPlus size={16} className="mr-2" />Adicionar à fila</Button>
+              <Button onClick={requestIn}>Registrar agora</Button>
+            </div>
+            {queueIn.length > 0 && (
+              <Button className="w-full" variant="default" onClick={() => setConfirmBatch('entrada')}>
+                Confirmar fila ({queueIn.length} {queueIn.length === 1 ? 'item' : 'itens'})
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Saída */}
-      <Dialog open={outOpen} onOpenChange={(v) => { setOutOpen(v); if (!v) resetForm(); }}>
+      <Dialog open={outOpen} onOpenChange={(v) => { setOutOpen(v); if (!v) { resetForm(); setQueueOut([]); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle className="font-heading">Registrar Saída</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -273,13 +389,36 @@ export default function StockPage() {
                 <SelectContent>{OUT_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button className="w-full" onClick={requestOut}>Registrar Saída</Button>
+            {queueOut.length > 0 && (
+              <div className="rounded-md border bg-muted/20 p-2 space-y-1 max-h-40 overflow-y-auto">
+                <div className="text-xs font-medium text-muted-foreground px-1">Fila ({queueOut.length})</div>
+                {queueOut.map((it, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 text-xs bg-background rounded px-2 py-1.5">
+                    <div className="flex-1 min-w-0 truncate">
+                      <strong>{productLabel(it.productId)}</strong> · {it.quantity} {productUnitOf(it.productId)} · {centerLabel(it.centerId)} · {it.reason}
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setQueueOut(q => q.filter((_, idx) => idx !== i))}>
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={addOutToQueue}><ListPlus size={16} className="mr-2" />Adicionar à fila</Button>
+              <Button onClick={requestOut}>Registrar agora</Button>
+            </div>
+            {queueOut.length > 0 && (
+              <Button className="w-full" onClick={() => setConfirmBatch('saida')}>
+                Confirmar fila ({queueOut.length} {queueOut.length === 1 ? 'item' : 'itens'})
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Transferência */}
-      <Dialog open={transferOpen} onOpenChange={(v) => { setTransferOpen(v); if (!v) resetForm(); }}>
+      <Dialog open={transferOpen} onOpenChange={(v) => { setTransferOpen(v); if (!v) { resetForm(); setQueueTransfer([]); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle className="font-heading">Transferir entre Filiais</DialogTitle></DialogHeader>
           <div className="space-y-4">
@@ -315,7 +454,30 @@ export default function StockPage() {
               <Label>Observação (opcional)</Label>
               <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo da transferência" />
             </div>
-            <Button className="w-full" onClick={requestTransfer}>Registrar Transferência</Button>
+            {queueTransfer.length > 0 && (
+              <div className="rounded-md border bg-muted/20 p-2 space-y-1 max-h-40 overflow-y-auto">
+                <div className="text-xs font-medium text-muted-foreground px-1">Fila ({queueTransfer.length})</div>
+                {queueTransfer.map((it, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 text-xs bg-background rounded px-2 py-1.5">
+                    <div className="flex-1 min-w-0 truncate">
+                      <strong>{productLabel(it.productId)}</strong> · {it.quantity} {productUnitOf(it.productId)} · {centerLabel(it.centerId)} → {centerLabel(it.destCenterId)}
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setQueueTransfer(q => q.filter((_, idx) => idx !== i))}>
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={addTransferToQueue}><ListPlus size={16} className="mr-2" />Adicionar à fila</Button>
+              <Button onClick={requestTransfer}>Registrar agora</Button>
+            </div>
+            {queueTransfer.length > 0 && (
+              <Button className="w-full" onClick={() => setConfirmBatch('transferencia')}>
+                Confirmar fila ({queueTransfer.length} {queueTransfer.length === 1 ? 'item' : 'itens'})
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -433,6 +595,45 @@ export default function StockPage() {
             <AlertDialogCancel disabled={submitting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); confirmExecute(); }} disabled={submitting}>
               {submitting ? 'Registrando...' : 'Confirmar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={confirmBatch !== null} onOpenChange={(v) => !v && !submitting && setConfirmBatch(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading">
+              Confirmar fila de {confirmBatch === 'entrada' ? 'Entradas' : confirmBatch === 'saida' ? 'Saídas' : 'Transferências'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  {confirmBatch === 'entrada' && `Serão registradas ${queueIn.length} entrada(s) em sequência.`}
+                  {confirmBatch === 'saida' && `Serão registradas ${queueOut.length} saída(s) em sequência.`}
+                  {confirmBatch === 'transferencia' && `Serão registradas ${queueTransfer.length} transferência(s) em sequência.`}
+                </p>
+                <div className="rounded-md border bg-muted/30 p-3 max-h-60 overflow-y-auto space-y-1 text-xs">
+                  {confirmBatch === 'entrada' && queueIn.map((it, i) => (
+                    <div key={i}>{i + 1}. <strong>{productLabel(it.productId)}</strong> — {it.quantity} {productUnitOf(it.productId)} @ {centerLabel(it.centerId)}</div>
+                  ))}
+                  {confirmBatch === 'saida' && queueOut.map((it, i) => (
+                    <div key={i}>{i + 1}. <strong>{productLabel(it.productId)}</strong> — {it.quantity} {productUnitOf(it.productId)} @ {centerLabel(it.centerId)}</div>
+                  ))}
+                  {confirmBatch === 'transferencia' && queueTransfer.map((it, i) => (
+                    <div key={i}>{i + 1}. <strong>{productLabel(it.productId)}</strong> — {it.quantity} {productUnitOf(it.productId)} · {centerLabel(it.centerId)} → {centerLabel(it.destCenterId)}</div>
+                  ))}
+                </div>
+                {batchProgress && (
+                  <p className="text-xs text-muted-foreground">Progresso: {batchProgress.done}/{batchProgress.total}</p>
+                )}
+                <p className="text-xs text-muted-foreground">Itens com falha (ex.: estoque insuficiente) serão pulados e contabilizados ao final.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); executeBatch(); }} disabled={submitting}>
+              {submitting ? `Registrando... ${batchProgress ? `${batchProgress.done}/${batchProgress.total}` : ''}` : 'Confirmar todos'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
