@@ -454,7 +454,30 @@ export default function StockPage() {
               <Label>Observação (opcional)</Label>
               <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="Motivo da transferência" />
             </div>
-            <Button className="w-full" onClick={requestTransfer}>Registrar Transferência</Button>
+            {queueTransfer.length > 0 && (
+              <div className="rounded-md border bg-muted/20 p-2 space-y-1 max-h-40 overflow-y-auto">
+                <div className="text-xs font-medium text-muted-foreground px-1">Fila ({queueTransfer.length})</div>
+                {queueTransfer.map((it, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 text-xs bg-background rounded px-2 py-1.5">
+                    <div className="flex-1 min-w-0 truncate">
+                      <strong>{productLabel(it.productId)}</strong> · {it.quantity} {productUnitOf(it.productId)} · {centerLabel(it.centerId)} → {centerLabel(it.destCenterId)}
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => setQueueTransfer(q => q.filter((_, idx) => idx !== i))}>
+                      <Trash2 size={12} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={addTransferToQueue}><ListPlus size={16} className="mr-2" />Adicionar à fila</Button>
+              <Button onClick={requestTransfer}>Registrar agora</Button>
+            </div>
+            {queueTransfer.length > 0 && (
+              <Button className="w-full" onClick={() => setConfirmBatch('transferencia')}>
+                Confirmar fila ({queueTransfer.length} {queueTransfer.length === 1 ? 'item' : 'itens'})
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
