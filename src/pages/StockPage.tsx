@@ -163,6 +163,86 @@ export default function StockPage() {
     }
   };
 
+  // ===== Carrinho / fila =====
+  const productLabel = (id: string) => products.find(p => p.id === id)?.name || '—';
+  const productUnitOf = (id: string) => products.find(p => p.id === id)?.unit || '';
+  const centerLabel = (id: string) => costCenters.find(c => c.id === id)?.name || '—';
+
+  const addInToQueue = () => {
+    if (!productId || !reason || quantity <= 0 || !centerId) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos.', variant: 'destructive' }); return;
+    }
+    const cost = parseFloat(unitCost.replace(',', '.'));
+    if (!unitCost || isNaN(cost) || cost <= 0) {
+      toast({ title: 'Valor obrigatório', description: 'Informe o valor unitário.', variant: 'destructive' }); return;
+    }
+    setQueueIn(q => [...q, { productId, quantity, reason, centerId, movDate, unitCost }]);
+    setProductId(''); setQuantity(1); setUnitCost('');
+  };
+  const addOutToQueue = () => {
+    if (!productId || !reason || quantity <= 0 || !centerId) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos.', variant: 'destructive' }); return;
+    }
+    setQueueOut(q => [...q, { productId, quantity, reason, centerId, movDate }]);
+    setProductId(''); setQuantity(1);
+  };
+  const addTransferToQueue = () => {
+    if (!productId || !centerId || !destCenterId || centerId === destCenterId || quantity <= 0) {
+      toast({ title: 'Atenção', description: 'Preencha todos os campos corretamente.', variant: 'destructive' }); return;
+    }
+    setQueueTransfer(q => [...q, { productId, quantity, centerId, destCenterId, reason, movDate }]);
+    setProductId(''); setQuantity(1);
+  };
+
+  const executeBatch = async () => {
+    setSubmitting(true);
+    let okCount = 0, failCount = 0;
+    try {
+      if (confirmBatch === 'entrada') {
+        setBatchProgress({ done: 0, total: queueIn.length });
+        for (let i = 0; i < queueIn.length; i++) {
+          const it = queueIn[i];
+          const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
+          const cost = parseFloat(it.unitCost.replace(',', '.'));
+          const ok = await addStockIn(it.productId, it.quantity, it.reason, it.centerId, dateISO, cost);
+          ok ? okCount++ : failCount++;
+          setBatchProgress({ done: i + 1, total: queueIn.length });
+        }
+        setQueueIn([]); setInOpen(false);
+      } else if (confirmBatch === 'saida') {
+        setBatchProgress({ done: 0, total: queueOut.length });
+        for (let i = 0; i < queueOut.length; i++) {
+          const it = queueOut[i];
+          const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
+          const ok = await addStockOut(it.productId, it.quantity, it.reason, it.centerId, dateISO);
+          ok ? okCount++ : failCount++;
+          setBatchProgress({ done: i + 1, total: queueOut.length });
+        }
+        setQueueOut([]); setOutOpen(false);
+      } else if (confirmBatch === 'transferencia') {
+        setBatchProgress({ done: 0, total: queueTransfer.length });
+        for (let i = 0; i < queueTransfer.length; i++) {
+          const it = queueTransfer[i];
+          const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
+          const ok = await transferStock(it.productId, it.quantity, it.centerId, it.destCenterId, it.reason, dateISO);
+          ok ? okCount++ : failCount++;
+          setBatchProgress({ done: i + 1, total: queueTransfer.length });
+        }
+        setQueueTransfer([]); setTransferOpen(false);
+      }
+      toast({
+        title: failCount === 0 ? 'Lançamentos efetivados' : 'Concluído com falhas',
+        description: `${okCount} sucesso(s)${failCount ? `, ${failCount} falha(s)` : ''}.`,
+        variant: failCount === 0 ? 'default' : 'destructive',
+      });
+      resetForm();
+    } finally {
+      setSubmitting(false);
+      setConfirmBatch(null);
+      setBatchProgress(null);
+    }
+  };
+
   const productName = products.find(p => p.id === productId)?.name || '—';
   const productUnit = products.find(p => p.id === productId)?.unit || '';
   const centerName = costCenters.find(c => c.id === centerId)?.name || '—';
