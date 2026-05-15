@@ -73,11 +73,33 @@ export default function ProductsPage() {
     setOpen(true);
   };
 
+  const handleExportExcel = () => {
+    const rows = filtered.map(p => {
+      const qty = getStock(p.id, activeCenterId);
+      const effectiveMin = filialSelected ? getMinStock(p.id, filialSelected) : p.minStock;
+      return {
+        Nome: p.name,
+        SKU: p.sku,
+        Categoria: p.category || '',
+        [`Estoque ${filialSelected ? `(${filialName})` : '(consolidado)'}`]: qty,
+        Unidade: p.unit,
+        [`Mín. ${filialSelected ? `(${filialName})` : '(geral)'}`]: effectiveMin,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+    const ts = new Date().toISOString().slice(0, 10);
+    const suffix = filialSelected ? `-${filialName}` : '-consolidado';
+    XLSX.writeFile(wb, `produtos${suffix}-${ts}.xlsx`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Produtos</h1>
         <div className="flex items-center gap-2">
+        <Button variant="outline" onClick={handleExportExcel}><Download size={16} className="mr-2" />Exportar Excel</Button>
         {isMaster && <ProductBulkImport />}
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditing(null); setForm(emptyProduct); } }}>
           <DialogTrigger asChild>
