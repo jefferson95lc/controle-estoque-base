@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Minus, AlertTriangle, ArrowLeftRight, Building2 } from 'lucide-react';
+import { Plus, Minus, AlertTriangle, ArrowLeftRight, Building2, Trash2, ListPlus } from 'lucide-react';
 import { StockBulkImport } from '@/components/StockBulkImport';
 import { ProductCombobox } from '@/components/ProductCombobox';
 import { MinStockCell } from '@/components/MinStockCell';
