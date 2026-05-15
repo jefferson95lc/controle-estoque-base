@@ -276,7 +276,7 @@ export default function StockPage() {
 
       {/* Entrada */}
       <Dialog open={inOpen} onOpenChange={(v) => { setInOpen(v); if (!v) { resetForm(); setQueueIn([]); } }}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="font-heading">Registrar Entrada</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -360,7 +360,7 @@ export default function StockPage() {
 
       {/* Saída */}
       <Dialog open={outOpen} onOpenChange={(v) => { setOutOpen(v); if (!v) { resetForm(); setQueueOut([]); } }}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="font-heading">Registrar Saída</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -419,7 +419,7 @@ export default function StockPage() {
 
       {/* Transferência */}
       <Dialog open={transferOpen} onOpenChange={(v) => { setTransferOpen(v); if (!v) { resetForm(); setQueueTransfer([]); } }}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="font-heading">Transferir entre Filiais</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
