@@ -45,6 +45,16 @@ export default function StockPage() {
   const [confirmType, setConfirmType] = useState<null | 'entrada' | 'saida' | 'transferencia'>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Filas de lançamentos (carrinho local)
+  type QueueInItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string; unitCost: string };
+  type QueueOutItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string };
+  type QueueTransferItem = { productId: string; quantity: number; centerId: string; destCenterId: string; reason: string; movDate: string };
+  const [queueIn, setQueueIn] = useState<QueueInItem[]>([]);
+  const [queueOut, setQueueOut] = useState<QueueOutItem[]>([]);
+  const [queueTransfer, setQueueTransfer] = useState<QueueTransferItem[]>([]);
+  const [confirmBatch, setConfirmBatch] = useState<null | 'entrada' | 'saida' | 'transferencia'>(null);
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(null);
+
   const isConsolidated = !activeCenterId || activeCenterId === matrizId;
   const viewingCenter = isConsolidated ? null : costCenters.find(c => c.id === activeCenterId) || null;
 
