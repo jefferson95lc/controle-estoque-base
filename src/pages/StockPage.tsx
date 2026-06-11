@@ -197,6 +197,16 @@ export default function StockPage() {
   const executeBatch = async () => {
     setSubmitting(true);
     let okCount = 0, failCount = 0;
+    const failures: string[] = [];
+    // Saldo local acumulado por (produto|filial) para evitar estoque negativo
+    // quando há vários lançamentos do mesmo produto/filial na mesma fila.
+    const running: Record<string, number> = {};
+    const key = (pid: string, cid: string) => `${pid}|${cid}`;
+    const avail = (pid: string, cid: string) => {
+      const k = key(pid, cid);
+      if (running[k] === undefined) running[k] = getStock(pid, cid);
+      return running[k];
+    };
     try {
       if (confirmBatch === 'entrada') {
         setBatchProgress({ done: 0, total: queueIn.length });
@@ -205,7 +215,8 @@ export default function StockPage() {
           const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
           const cost = parseFloat(it.unitCost.replace(',', '.'));
           const ok = await addStockIn(it.productId, it.quantity, it.reason, it.centerId, dateISO, cost);
-          ok ? okCount++ : failCount++;
+          if (ok) { okCount++; running[key(it.productId, it.centerId)] = avail(it.productId, it.centerId) + it.quantity; }
+          else { failCount++; failures.push(`${productLabel(it.productId)} (${centerLabel(it.centerId)})`); }
           setBatchProgress({ done: i + 1, total: queueIn.length });
         }
         setQueueIn([]); setInOpen(false);
@@ -213,9 +224,17 @@ export default function StockPage() {
         setBatchProgress({ done: 0, total: queueOut.length });
         for (let i = 0; i < queueOut.length; i++) {
           const it = queueOut[i];
+          const cur = avail(it.productId, it.centerId);
+          if (cur < it.quantity) {
+            failCount++;
+            failures.push(`${productLabel(it.productId)} (${centerLabel(it.centerId)}): disp. ${cur}, pedido ${it.quantity}`);
+            setBatchProgress({ done: i + 1, total: queueOut.length });
+            continue;
+          }
           const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
           const ok = await addStockOut(it.productId, it.quantity, it.reason, it.centerId, dateISO);
-          ok ? okCount++ : failCount++;
+          if (ok) { okCount++; running[key(it.productId, it.centerId)] = cur - it.quantity; }
+          else { failCount++; failures.push(`${productLabel(it.productId)} (${centerLabel(it.centerId)})`); }
           setBatchProgress({ done: i + 1, total: queueOut.length });
         }
         setQueueOut([]); setOutOpen(false);
@@ -223,16 +242,31 @@ export default function StockPage() {
         setBatchProgress({ done: 0, total: queueTransfer.length });
         for (let i = 0; i < queueTransfer.length; i++) {
           const it = queueTransfer[i];
+          const cur = avail(it.productId, it.centerId);
+          if (cur < it.quantity) {
+            failCount++;
+            failures.push(`${productLabel(it.productId)} (${centerLabel(it.centerId)} → ${centerLabel(it.destCenterId)}): disp. ${cur}, pedido ${it.quantity}`);
+            setBatchProgress({ done: i + 1, total: queueTransfer.length });
+            continue;
+          }
           const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
           const ok = await transferStock(it.productId, it.quantity, it.centerId, it.destCenterId, it.reason, dateISO);
-          ok ? okCount++ : failCount++;
+          if (ok) {
+            okCount++;
+            running[key(it.productId, it.centerId)] = cur - it.quantity;
+            running[key(it.productId, it.destCenterId)] = avail(it.productId, it.destCenterId) + it.quantity;
+          } else {
+            failCount++;
+            failures.push(`${productLabel(it.productId)} (${centerLabel(it.centerId)} → ${centerLabel(it.destCenterId)})`);
+          }
           setBatchProgress({ done: i + 1, total: queueTransfer.length });
         }
         setQueueTransfer([]); setTransferOpen(false);
       }
       toast({
         title: failCount === 0 ? 'Lançamentos efetivados' : 'Concluído com falhas',
-        description: `${okCount} sucesso(s)${failCount ? `, ${failCount} falha(s)` : ''}.`,
+        description:
+          `${okCount} sucesso(s)${failCount ? `, ${failCount} falha(s) por estoque insuficiente:\n• ${failures.slice(0, 5).join('\n• ')}${failures.length > 5 ? `\n…e mais ${failures.length - 5}` : ''}` : ''}.`,
         variant: failCount === 0 ? 'default' : 'destructive',
       });
       resetForm();
