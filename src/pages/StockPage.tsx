@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useApp } from '@/store/AppContext';
 import { Button } from '@/components/ui/button';
@@ -44,11 +44,12 @@ export default function StockPage() {
 
   const [confirmType, setConfirmType] = useState<null | 'entrada' | 'saida' | 'transferencia'>(null);
   const [submitting, setSubmitting] = useState(false);
+  const pendingRequestId = useRef<string | null>(null);
 
   // Filas de lançamentos (carrinho local)
-  type QueueInItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string; unitCost: string };
-  type QueueOutItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string };
-  type QueueTransferItem = { productId: string; quantity: number; centerId: string; destCenterId: string; reason: string; movDate: string };
+  type QueueInItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string; unitCost: string; clientRequestId: string };
+  type QueueOutItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string; clientRequestId: string };
+  type QueueTransferItem = { productId: string; quantity: number; centerId: string; destCenterId: string; reason: string; movDate: string; clientRequestId: string };
   const [queueIn, setQueueIn] = useState<QueueInItem[]>([]);
   const [queueOut, setQueueOut] = useState<QueueOutItem[]>([]);
   const [queueTransfer, setQueueTransfer] = useState<QueueTransferItem[]>([]);
@@ -107,6 +108,7 @@ export default function StockPage() {
       toast({ title: 'Valor obrigatório', description: 'Informe o valor unitário do produto.', variant: 'destructive' });
       return;
     }
+    pendingRequestId.current = crypto.randomUUID();
     setConfirmType('entrada');
   };
 
@@ -115,6 +117,7 @@ export default function StockPage() {
       toast({ title: 'Atenção', description: 'Preencha todos os campos.', variant: 'destructive' });
       return;
     }
+    pendingRequestId.current = crypto.randomUUID();
     setConfirmType('saida');
   };
 
@@ -123,29 +126,30 @@ export default function StockPage() {
       toast({ title: 'Atenção', description: 'Preencha todos os campos corretamente.', variant: 'destructive' });
       return;
     }
+    pendingRequestId.current = crypto.randomUUID();
     setConfirmType('transferencia');
   };
 
-  const handleIn = async () => {
+  const handleIn = async (clientRequestId: string) => {
     const cost = parseFloat(unitCost.replace(',', '.'));
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
-    const ok = await addStockIn(productId, quantity, reason, centerId, dateISO, cost);
+    const ok = await addStockIn(productId, quantity, reason, centerId, dateISO, cost, clientRequestId);
     if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Entrada registrada.' });
     setInOpen(false); resetForm();
   };
 
-  const handleOut = async () => {
+  const handleOut = async (clientRequestId: string) => {
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
-    const ok = await addStockOut(productId, quantity, reason, centerId, dateISO);
+    const ok = await addStockOut(productId, quantity, reason, centerId, dateISO, clientRequestId);
     if (!ok) { toast({ title: 'Erro', description: 'Estoque insuficiente nessa filial.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Saída registrada.' });
     setOutOpen(false); resetForm();
   };
 
-  const handleTransfer = async () => {
+  const handleTransfer = async (clientRequestId: string) => {
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
-    const ok = await transferStock(productId, quantity, centerId, destCenterId, reason, dateISO);
+    const ok = await transferStock(productId, quantity, centerId, destCenterId, reason, dateISO, clientRequestId);
     if (!ok) { toast({ title: 'Erro', description: 'Estoque insuficiente na filial de origem.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Transferência registrada.' });
     setTransferOpen(false); resetForm();
@@ -154,12 +158,15 @@ export default function StockPage() {
   const confirmExecute = async () => {
     setSubmitting(true);
     try {
-      if (confirmType === 'entrada') await handleIn();
-      else if (confirmType === 'saida') await handleOut();
-      else if (confirmType === 'transferencia') await handleTransfer();
+      const requestId = pendingRequestId.current;
+      if (!requestId) throw new Error('Missing client request id');
+      if (confirmType === 'entrada') await handleIn(requestId);
+      else if (confirmType === 'saida') await handleOut(requestId);
+      else if (confirmType === 'transferencia') await handleTransfer(requestId);
     } finally {
       setSubmitting(false);
       setConfirmType(null);
+      pendingRequestId.current = null;
     }
   };
 
@@ -176,21 +183,21 @@ export default function StockPage() {
     if (!unitCost || isNaN(cost) || cost <= 0) {
       toast({ title: 'Valor obrigatório', description: 'Informe o valor unitário.', variant: 'destructive' }); return;
     }
-    setQueueIn(q => [...q, { productId, quantity, reason, centerId, movDate, unitCost }]);
+    setQueueIn(q => [...q, { productId, quantity, reason, centerId, movDate, unitCost, clientRequestId: crypto.randomUUID() }]);
     setProductId(''); setQuantity(1); setUnitCost('');
   };
   const addOutToQueue = () => {
     if (!productId || !reason || quantity <= 0 || !centerId) {
       toast({ title: 'Atenção', description: 'Preencha todos os campos.', variant: 'destructive' }); return;
     }
-    setQueueOut(q => [...q, { productId, quantity, reason, centerId, movDate }]);
+    setQueueOut(q => [...q, { productId, quantity, reason, centerId, movDate, clientRequestId: crypto.randomUUID() }]);
     setProductId(''); setQuantity(1);
   };
   const addTransferToQueue = () => {
     if (!productId || !centerId || !destCenterId || centerId === destCenterId || quantity <= 0) {
       toast({ title: 'Atenção', description: 'Preencha todos os campos corretamente.', variant: 'destructive' }); return;
     }
-    setQueueTransfer(q => [...q, { productId, quantity, centerId, destCenterId, reason, movDate }]);
+    setQueueTransfer(q => [...q, { productId, quantity, centerId, destCenterId, reason, movDate, clientRequestId: crypto.randomUUID() }]);
     setProductId(''); setQuantity(1);
   };
 
@@ -214,7 +221,7 @@ export default function StockPage() {
           const it = queueIn[i];
           const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
           const cost = parseFloat(it.unitCost.replace(',', '.'));
-          const ok = await addStockIn(it.productId, it.quantity, it.reason, it.centerId, dateISO, cost);
+          const ok = await addStockIn(it.productId, it.quantity, it.reason, it.centerId, dateISO, cost, it.clientRequestId);
           if (ok) { okCount++; running[key(it.productId, it.centerId)] = avail(it.productId, it.centerId) + it.quantity; }
           else { failCount++; failures.push(`${productLabel(it.productId)} (${centerLabel(it.centerId)})`); }
           setBatchProgress({ done: i + 1, total: queueIn.length });
@@ -232,7 +239,7 @@ export default function StockPage() {
             continue;
           }
           const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
-          const ok = await addStockOut(it.productId, it.quantity, it.reason, it.centerId, dateISO);
+          const ok = await addStockOut(it.productId, it.quantity, it.reason, it.centerId, dateISO, it.clientRequestId);
           if (ok) { okCount++; running[key(it.productId, it.centerId)] = cur - it.quantity; }
           else { failCount++; failures.push(`${productLabel(it.productId)} (${centerLabel(it.centerId)})`); }
           setBatchProgress({ done: i + 1, total: queueOut.length });
@@ -250,7 +257,7 @@ export default function StockPage() {
             continue;
           }
           const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
-          const ok = await transferStock(it.productId, it.quantity, it.centerId, it.destCenterId, it.reason, dateISO);
+          const ok = await transferStock(it.productId, it.quantity, it.centerId, it.destCenterId, it.reason, dateISO, it.clientRequestId);
           if (ok) {
             okCount++;
             running[key(it.productId, it.centerId)] = cur - it.quantity;
