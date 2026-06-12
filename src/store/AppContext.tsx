@@ -28,9 +28,9 @@ interface AppState {
   updateCategory: (c: Category) => Promise<{ ok: boolean; error?: string }>;
   deleteCategory: (id: string) => Promise<{ ok: boolean; error?: string }>;
 
-  addStockIn: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, unitCost?: number) => Promise<boolean>;
-  addStockOut: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string) => Promise<boolean>;
-  transferStock: (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string) => Promise<boolean>;
+  addStockIn: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, unitCost?: number, clientRequestId?: string) => Promise<boolean>;
+  addStockOut: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, clientRequestId?: string) => Promise<boolean>;
+  transferStock: (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string, clientRequestId?: string) => Promise<boolean>;
 
   getStock: (productId: string, costCenterId: string | null) => number;
   getMinStock: (productId: string, costCenterId: string | null) => number;
@@ -61,6 +61,20 @@ function buildStockMap(movements: StockMovement[]): StockMap {
     }
   }
   return map;
+}
+
+function movementKey(m: StockMovement): string {
+  return [
+    m.productId,
+    m.type,
+    m.quantity,
+    m.reason,
+    m.date,
+    m.costCenterId,
+    m.destinationCenterId || '',
+    m.userId || '',
+    m.unitCost != null ? String(m.unitCost) : '',
+  ].join('|');
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -151,13 +165,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       if (prodRes.data) setProducts(prodRes.data.map(r => ({ id: r.id, name: r.name, sku: r.sku, category: r.category, unit: r.unit, minStock: r.min_stock })));
-      if (movRes.data) setMovements(movRes.data.map(r => ({
-        id: r.id, productId: r.product_id, type: r.type as StockMovement['type'],
-        quantity: r.quantity, reason: r.reason, date: r.date,
-        costCenterId: r.cost_center_id, destinationCenterId: r.destination_center_id || undefined,
-        userId: (r as any).user_id || undefined,
-        unitCost: (r as any).unit_cost != null ? Number((r as any).unit_cost) : undefined,
-      })));
+      if (movRes.data) {
+        const mapped = movRes.data.map(r => ({
+          id: r.id,
+          productId: r.product_id,
+          type: r.type as StockMovement['type'],
+          quantity: r.quantity,
+          reason: r.reason,
+          date: r.date,
+          costCenterId: r.cost_center_id,
+          destinationCenterId: r.destination_center_id || undefined,
+          userId: (r as any).user_id || undefined,
+          unitCost: (r as any).unit_cost != null ? Number((r as any).unit_cost) : undefined,
+        }));
+        const seen = new Set<string>();
+        const deduped = mapped.filter(m => {
+          const key = movementKey(m);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        if (deduped.length !== mapped.length) {
+          console.warn('Duplicate stock movements removed during load', {
+            removed: mapped.length - deduped.length,
+          });
+        }
+        setMovements(deduped);
+      }
       if (minRes.data) {
         const map: MinStockMap = {};
         for (const r of minRes.data as any[]) {
@@ -341,14 +375,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const insertMovement = useCallback(async (m: Omit<StockMovement, 'id'>): Promise<StockMovement | null> => {
     const { data: { session } } = await supabase.auth.getSession();
     const currentUserId = session?.user?.id || null;
-    const { data, error } = await supabase.from('stock_movements').insert({
+    const payload = {
+      id: m.clientRequestId ?? undefined,
       product_id: m.productId, type: m.type, quantity: m.quantity,
       reason: m.reason, date: m.date, cost_center_id: m.costCenterId,
       destination_center_id: m.destinationCenterId || null,
       user_id: currentUserId,
       unit_cost: m.unitCost != null ? m.unitCost : null,
-    } as any).select().single();
-    if (error) { console.error(error); return null; }
+    };
+    const { data, error } = await supabase
+      .from('stock_movements')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) {
+      if ((error as any).code === '23505' && m.clientRequestId) {
+        console.error('Duplicate stock movement prevented by id', { id: m.clientRequestId, payload });
+      } else {
+        console.error(error);
+      }
+      return null;
+    }
     const mov: StockMovement = {
       id: data.id, productId: data.product_id, type: data.type as StockMovement['type'],
       quantity: data.quantity, reason: data.reason, date: data.date,
@@ -360,28 +407,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return mov;
   }, []);
 
-  const addStockIn = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, unitCost?: number): Promise<boolean> => {
+  const addStockIn = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, unitCost?: number, clientRequestId?: string): Promise<boolean> => {
     if (!isFilial(costCenterId)) return false;
     const mov = await insertMovement({
       productId, type: 'entrada', quantity, reason,
       date: date || new Date().toISOString(), costCenterId,
       unitCost,
+      clientRequestId,
     });
     return !!mov;
   }, [isFilial, insertMovement]);
 
-  const addStockOut = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string): Promise<boolean> => {
+  const addStockOut = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, clientRequestId?: string): Promise<boolean> => {
     if (!isFilial(costCenterId)) return false;
     const current = (stockByCenter[productId]?.[costCenterId]) || 0;
     if (current < quantity) return false;
     const mov = await insertMovement({
       productId, type: 'saida', quantity, reason,
       date: date || new Date().toISOString(), costCenterId,
+      clientRequestId,
     });
     return !!mov;
   }, [isFilial, stockByCenter, insertMovement]);
 
-  const transferStock = useCallback(async (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string): Promise<boolean> => {
+  const transferStock = useCallback(async (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string, clientRequestId?: string): Promise<boolean> => {
     if (!isFilial(fromId) || !isFilial(toId) || fromId === toId) return false;
     const current = (stockByCenter[productId]?.[fromId]) || 0;
     if (current < quantity) return false;
@@ -398,6 +447,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       date: date || new Date().toISOString(),
       costCenterId: fromId, destinationCenterId: toId,
       unitCost,
+      clientRequestId,
     });
     return !!mov;
   }, [isFilial, stockByCenter, movements, insertMovement]);

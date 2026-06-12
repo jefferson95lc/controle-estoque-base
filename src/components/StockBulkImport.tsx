@@ -15,6 +15,7 @@ const REASONS_OUT = ['Venda', 'Perda', 'Uso interno', 'Devolução', 'Outro'];
 
 interface ParsedRow {
   row: number;
+  clientRequestId: string;
   productName: string;
   productId: string;
   quantity: number;
@@ -116,6 +117,7 @@ export function StockBulkImport() {
 
           return {
             row: idx + 2,
+            clientRequestId: crypto.randomUUID(),
             productName,
             productId: prod?.id || '',
             quantity: quantityRaw,
@@ -151,11 +153,11 @@ export function StockBulkImport() {
       let ok = false;
 
       if (movType === 'entrada') {
-        ok = await addStockIn(r.productId, r.quantity, r.reason, r.costCenterId, dateISO);
+        ok = await addStockIn(r.productId, r.quantity, r.reason, r.costCenterId, dateISO, undefined, r.clientRequestId);
       } else if (movType === 'saida') {
-        ok = await addStockOut(r.productId, r.quantity, r.reason, r.costCenterId, dateISO);
+        ok = await addStockOut(r.productId, r.quantity, r.reason, r.costCenterId, dateISO, r.clientRequestId);
       } else {
-        ok = await transferStock(r.productId, r.quantity, r.costCenterId, r.destCenterId, r.reason, dateISO);
+        ok = await transferStock(r.productId, r.quantity, r.costCenterId, r.destCenterId, r.reason, dateISO, r.clientRequestId);
       }
 
       if (ok) success++;

@@ -30,6 +30,7 @@ export interface ProductMinStock {
 
 export interface StockMovement {
   id: string;
+  clientRequestId?: string;
   productId: string;
   type: 'entrada' | 'saida' | 'transferencia';
   quantity: number;
