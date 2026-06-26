@@ -146,13 +146,14 @@ export type Database = {
         }
         Relationships: []
       }
-      stock_movements: {
-        Row: {
-          cost_center_id: string
-          created_at: string
-          date: string
-          destination_center_id: string | null
-          id: string
+        stock_movements: {
+          Row: {
+            cost_center_id: string
+            created_at: string
+            client_request_id: string | null
+            date: string
+            destination_center_id: string | null
+            id: string
           product_id: string
           quantity: number
           reason: string
@@ -160,12 +161,13 @@ export type Database = {
           unit_cost: number | null
           user_id: string | null
         }
-        Insert: {
-          cost_center_id: string
-          created_at?: string
-          date?: string
-          destination_center_id?: string | null
-          id?: string
+          Insert: {
+            cost_center_id: string
+            created_at?: string
+            client_request_id?: string | null
+            date?: string
+            destination_center_id?: string | null
+            id?: string
           product_id: string
           quantity: number
           reason?: string
@@ -173,12 +175,13 @@ export type Database = {
           unit_cost?: number | null
           user_id?: string | null
         }
-        Update: {
-          cost_center_id?: string
-          created_at?: string
-          date?: string
-          destination_center_id?: string | null
-          id?: string
+          Update: {
+            cost_center_id?: string
+            created_at?: string
+            client_request_id?: string | null
+            date?: string
+            destination_center_id?: string | null
+            id?: string
           product_id?: string
           quantity?: number
           reason?: string
