@@ -141,16 +141,34 @@ export default function StockPage() {
 
   const handleOut = async (clientRequestId: string) => {
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
+    const currentStock = getStock(productId, centerId);
+    if (currentStock - quantity < 0) {
+      toast({
+        title: 'Não foi possível concluir a operação',
+        description: `Produto: ${productName}\nEstoque disponível: ${currentStock} ${productUnit}\nQuantidade solicitada: ${quantity} ${productUnit}\nA operação geraria estoque negativo.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     const ok = await addStockOut(productId, quantity, reason, centerId, dateISO, clientRequestId);
-    if (!ok) { toast({ title: 'Erro', description: 'Estoque insuficiente nessa filial.', variant: 'destructive' }); return; }
+    if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar a saída.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Saída registrada.' });
     setOutOpen(false); resetForm();
   };
 
   const handleTransfer = async (clientRequestId: string) => {
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
+    const originStock = getStock(productId, centerId);
+    if (originStock - quantity < 0) {
+      toast({
+        title: 'Não foi possível concluir a transferência',
+        description: `Produto: ${productName}\nOrigem: ${centerName}\nEstoque disponível: ${originStock} ${productUnit}\nQuantidade solicitada: ${quantity} ${productUnit}\nA unidade de origem não possui saldo suficiente. O destino só poderá receber após validação da origem.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     const ok = await transferStock(productId, quantity, centerId, destCenterId, reason, dateISO, clientRequestId);
-    if (!ok) { toast({ title: 'Erro', description: 'Estoque insuficiente na filial de origem.', variant: 'destructive' }); return; }
+    if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar a transferência.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Transferência registrada.' });
     setTransferOpen(false); resetForm();
   };
