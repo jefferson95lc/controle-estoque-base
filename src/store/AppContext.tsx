@@ -177,6 +177,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           destinationCenterId: r.destination_center_id || undefined,
           userId: (r as any).user_id || undefined,
           unitCost: (r as any).unit_cost != null ? Number((r as any).unit_cost) : undefined,
+          invoiceNumber: (r as any).invoice_number || undefined,
         }));
         const seen = new Set<string>();
         const deduped = mapped.filter(m => {
