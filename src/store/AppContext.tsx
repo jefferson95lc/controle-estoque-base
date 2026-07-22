@@ -28,7 +28,7 @@ interface AppState {
   updateCategory: (c: Category) => Promise<{ ok: boolean; error?: string }>;
   deleteCategory: (id: string) => Promise<{ ok: boolean; error?: string }>;
 
-  addStockIn: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, unitCost?: number, clientRequestId?: string) => Promise<boolean>;
+  addStockIn: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, unitCost?: number, clientRequestId?: string, invoiceNumber?: string) => Promise<boolean>;
   addStockOut: (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, clientRequestId?: string) => Promise<boolean>;
   transferStock: (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string, clientRequestId?: string) => Promise<boolean>;
 
