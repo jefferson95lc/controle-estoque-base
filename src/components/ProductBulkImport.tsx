@@ -114,18 +114,6 @@ export function ProductBulkImport() {
         </DialogHeader>
 
         <div className="space-y-4">
-          {filialSelected && (
-            <div className="rounded-lg border border-primary/30 p-3 bg-primary/5 text-sm flex items-start gap-2">
-              <Building2 size={16} className="text-primary mt-0.5" />
-              <div>
-                <p className="font-medium">Importando para a filial: {filialName}</p>
-                <p className="text-muted-foreground text-xs mt-0.5">
-                  A coluna <code className="bg-muted px-1 rounded">estoque_minimo</code> do arquivo será gravada como <strong>mínimo desta filial</strong>.
-                  Produtos novos serão criados com mínimo geral 0. SKUs já existentes terão apenas o mínimo desta filial atualizado.
-                </p>
-              </div>
-            </div>
-          )}
 
           <div className="rounded-lg border border-dashed p-4 bg-muted/30">
             <div className="flex items-start gap-3">
@@ -133,7 +121,7 @@ export function ProductBulkImport() {
               <div className="flex-1 text-sm">
                 <p className="font-medium mb-1">Formato esperado</p>
                 <p className="text-muted-foreground mb-2">
-                  Colunas: <code className="text-xs bg-muted px-1 rounded">nome</code>, <code className="text-xs bg-muted px-1 rounded">sku</code>, <code className="text-xs bg-muted px-1 rounded">categoria</code>, <code className="text-xs bg-muted px-1 rounded">unidade</code>, <code className="text-xs bg-muted px-1 rounded">estoque_minimo</code>
+                  Colunas: <code className="text-xs bg-muted px-1 rounded">nome</code>, <code className="text-xs bg-muted px-1 rounded">sku</code>, <code className="text-xs bg-muted px-1 rounded">categoria</code>, <code className="text-xs bg-muted px-1 rounded">unidade</code>
                 </p>
                 <Button size="sm" variant="secondary" onClick={downloadTemplate}>
                   <Download size={14} className="mr-2" />Baixar template
@@ -197,13 +185,7 @@ export function ProductBulkImport() {
                         <td className="p-2">{r.unit}</td>
                         <td className="p-2">
                           {r.errors.length === 0 ? (
-                            r.existingProductId && filialSelected ? (
-                              <span className="text-blue-600 dark:text-blue-400">Atualizar mín. ({filialName})</span>
-                            ) : (
-                              <span className="text-emerald-600 dark:text-emerald-400">
-                                {filialSelected ? `Criar + mín. ${filialName}` : 'OK'}
-                              </span>
-                            )
+                            <span className="text-emerald-600 dark:text-emerald-400">OK</span>
                           ) : (
                             <span className="text-destructive">{r.errors.join('; ')}</span>
                           )}
