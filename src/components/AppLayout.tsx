@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Package, FileSpreadsheet, Warehouse, BarChart3, LayoutDashboard, Building2, Tags, Users, LogOut } from 'lucide-react';
+import { Package, Warehouse, BarChart3, LayoutDashboard, Building2, Tags, Users, LogOut } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import CostCenterSelector from './CostCenterSelector';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,7 +11,7 @@ const baseLinks = [
   { to: '/categorias', icon: Tags, label: 'Categorias' },
   { to: '/centros-custo', icon: Building2, label: 'Centros de Custo' },
   { to: '/estoque', icon: Warehouse, label: 'Estoque' },
-  { to: '/ordem-compras', icon: FileSpreadsheet, label: 'Ordem de Compras' },
+  
   { to: '/relatorios', icon: BarChart3, label: 'Relatórios' },
 ];
 

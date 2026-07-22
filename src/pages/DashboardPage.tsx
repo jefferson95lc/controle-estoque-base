@@ -1,21 +1,21 @@
 import { useMemo } from 'react';
 import { useApp } from '@/store/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, AlertTriangle, ArrowUpCircle, ArrowDownCircle, Building2, DollarSign } from 'lucide-react';
+import { Package, ArrowUpCircle, ArrowDownCircle, Building2, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import ForecastCard from '@/components/ForecastCard';
 
 export default function DashboardPage() {
-  const { products, movements, costCenters, getStock, getMinStock, activeCenterId, matrizId, filiais } = useApp();
+  const { products, movements, costCenters, getStock, activeCenterId, matrizId, filiais } = useApp();
 
   const isConsolidated = !activeCenterId || activeCenterId === matrizId;
   const scopeLabel = isConsolidated
     ? (matrizId ? 'Matriz (Consolidado)' : 'Consolidado')
     : (costCenters.find(c => c.id === activeCenterId)?.name || '—');
 
-  const lowStock = products.filter(p => getStock(p.id, activeCenterId) <= getMinStock(p.id, activeCenterId));
+  
 
   const allowedIds = useMemo(() => new Set(filiais.map(f => f.id).concat(matrizId ? [matrizId] : [])), [filiais, matrizId]);
   const scopedMovements = isConsolidated
@@ -62,7 +62,6 @@ export default function DashboardPage() {
 
   const stats = [
     { label: 'Produtos', value: products.length, icon: Package, color: 'text-primary' },
-    { label: 'Estoque Baixo', value: lowStock.length, icon: AlertTriangle, color: 'text-warning' },
     { label: 'Entradas', value: totalEntradas, icon: ArrowUpCircle, color: 'text-success' },
     { label: 'Saídas', value: totalSaidas, icon: ArrowDownCircle, color: 'text-muted-foreground' },
   ];
@@ -79,7 +78,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map(s => (
           <Card key={s.label}>
             <CardContent className="pt-6">
@@ -117,7 +116,6 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {filiais.map(f => {
                 const total = products.reduce((sum, p) => sum + getStock(p.id, f.id), 0);
-                const low = products.filter(p => getStock(p.id, f.id) <= getMinStock(p.id, f.id)).length;
                 return (
                   <div key={f.id} className="p-3 rounded-md border bg-secondary/30">
                     <div className="flex items-center gap-2 mb-1">
@@ -125,7 +123,6 @@ export default function DashboardPage() {
                       <span className="font-medium text-sm">{f.name}</span>
                     </div>
                     <p className="text-2xl font-heading font-bold">{total}</p>
-                    <p className="text-xs text-muted-foreground">{low} item(ns) abaixo do mínimo</p>
                   </div>
                 );
               })}
@@ -134,57 +131,33 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader><CardTitle className="font-heading text-lg">Produtos com Estoque Baixo</CardTitle></CardHeader>
-          <CardContent>
-            {lowStock.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum produto abaixo do estoque mínimo.</p>
-            ) : (
-              <div className="space-y-2">
-                {lowStock.map(p => {
-                  const qty = getStock(p.id, activeCenterId);
-                  const min = getMinStock(p.id, activeCenterId);
-                  return (
-                    <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-destructive/10">
-                      <span className="text-sm font-medium">{p.name}</span>
-                      <span className="text-sm text-destructive font-semibold">{qty}/{min} {p.unit}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="font-heading text-lg">Últimas Movimentações</CardTitle></CardHeader>
-          <CardContent>
-            {recentMovements.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma movimentação registrada.</p>
-            ) : (
-              <div className="space-y-2">
-                {recentMovements.map(m => (
-                  <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-secondary">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{getProductName(m.productId)}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {m.type === 'transferencia'
-                          ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
-                          : getCenterName(m.costCenterId)}
-                        {' · '}{format(new Date(m.date), 'dd/MM/yyyy', { locale: ptBR })}
-                      </p>
-                    </div>
-                    <Badge variant={m.type === 'entrada' ? 'default' : m.type === 'saida' ? 'destructive' : 'secondary'}>
-                      {m.type === 'entrada' ? '↑' : m.type === 'saida' ? '↓' : '⇄'} {m.quantity}
-                    </Badge>
+      <Card>
+        <CardHeader><CardTitle className="font-heading text-lg">Últimas Movimentações</CardTitle></CardHeader>
+        <CardContent>
+          {recentMovements.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma movimentação registrada.</p>
+          ) : (
+            <div className="space-y-2">
+              {recentMovements.map(m => (
+                <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-secondary">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{getProductName(m.productId)}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {m.type === 'transferencia'
+                        ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
+                        : getCenterName(m.costCenterId)}
+                      {' · '}{format(new Date(m.date), 'dd/MM/yyyy', { locale: ptBR })}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  <Badge variant={m.type === 'entrada' ? 'default' : m.type === 'saida' ? 'destructive' : 'secondary'}>
+                    {m.type === 'entrada' ? '↑' : m.type === 'saida' ? '↓' : '⇄'} {m.quantity}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <ForecastCard />
     </div>
