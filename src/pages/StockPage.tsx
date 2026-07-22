@@ -64,6 +64,7 @@ export default function StockPage() {
     setCenterId(activeCenterId && activeCenterId !== matrizId ? activeCenterId : '');
     setDestCenterId('');
     setUnitCost('');
+    setInvoiceNumber('');
   };
 
   const openIn = () => {
