@@ -39,6 +39,7 @@ export default function StockPage() {
   const [centerId, setCenterId] = useState<string>('');
   const [destCenterId, setDestCenterId] = useState<string>('');
   const [unitCost, setUnitCost] = useState<string>('');
+  const [invoiceNumber, setInvoiceNumber] = useState<string>('');
 
   const [confirmType, setConfirmType] = useState<null | 'entrada' | 'saida' | 'transferencia'>(null);
   const [submitting, setSubmitting] = useState(false);
