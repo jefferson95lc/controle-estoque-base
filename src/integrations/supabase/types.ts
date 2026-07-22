@@ -153,6 +153,7 @@ export type Database = {
           date: string
           destination_center_id: string | null
           id: string
+          invoice_number: string | null
           product_id: string
           quantity: number
           reason: string
@@ -166,6 +167,7 @@ export type Database = {
           date?: string
           destination_center_id?: string | null
           id?: string
+          invoice_number?: string | null
           product_id: string
           quantity: number
           reason?: string
@@ -179,6 +181,7 @@ export type Database = {
           date?: string
           destination_center_id?: string | null
           id?: string
+          invoice_number?: string | null
           product_id?: string
           quantity?: number
           reason?: string
