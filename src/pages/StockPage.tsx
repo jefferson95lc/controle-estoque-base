@@ -129,7 +129,7 @@ export default function StockPage() {
   const handleIn = async (clientRequestId: string) => {
     const cost = parseFloat(unitCost.replace(',', '.'));
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
-    const ok = await addStockIn(productId, quantity, reason, centerId, dateISO, cost, clientRequestId);
+    const ok = await addStockIn(productId, quantity, reason, centerId, dateISO, cost, clientRequestId, invoiceNumber.trim() || undefined);
     if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Entrada registrada.' });
     setInOpen(false); resetForm();
