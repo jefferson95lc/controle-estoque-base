@@ -260,13 +260,14 @@ export default function ReportsPage() {
                     <td className="p-3 text-center font-semibold">{m.quantity}</td>
                     <td className="p-3 text-right text-muted-foreground">{(m.type === 'entrada' || m.type === 'transferencia') ? formatBRL(m.unitCost) : '—'}</td>
                     <td className="p-3 text-right font-medium">{total != null ? formatBRL(total) : '—'}</td>
+                    <td className="p-3 text-muted-foreground font-mono text-xs">{m.invoiceNumber || '—'}</td>
                     <td className="p-3 text-muted-foreground">{m.reason}</td>
                     <td className="p-3 text-muted-foreground">{getUserEmail(m.userId)}</td>
                   </tr>
                 );
               })}
               {filteredMovements.length === 0 && (
-                <tr><td colSpan={isMaster ? 10 : 9} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
+                <tr><td colSpan={isMaster ? 11 : 10} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
               )}
             </tbody>
           </table>
