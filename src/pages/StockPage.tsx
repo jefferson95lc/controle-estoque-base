@@ -382,6 +382,14 @@ export default function StockPage() {
                 <SelectContent>{IN_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Número da NF (Nota Fiscal)</Label>
+              <Input
+                placeholder="Ex.: 123456"
+                value={invoiceNumber}
+                onChange={e => setInvoiceNumber(e.target.value)}
+              />
+            </div>
             {queueIn.length > 0 && (
               <div className="rounded-md border bg-muted/20 p-2 space-y-1 max-h-40 overflow-y-auto">
                 <div className="text-xs font-medium text-muted-foreground px-1">Fila ({queueIn.length})</div>
