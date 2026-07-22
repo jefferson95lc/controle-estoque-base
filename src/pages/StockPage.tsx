@@ -46,7 +46,7 @@ export default function StockPage() {
   const pendingRequestId = useRef<string | null>(null);
 
   // Filas de lançamentos (carrinho local)
-  type QueueInItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string; unitCost: string; clientRequestId: string };
+  type QueueInItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string; unitCost: string; invoiceNumber: string; clientRequestId: string };
   type QueueOutItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string; clientRequestId: string };
   type QueueTransferItem = { productId: string; quantity: number; centerId: string; destCenterId: string; reason: string; movDate: string; clientRequestId: string };
   const [queueIn, setQueueIn] = useState<QueueInItem[]>([]);
