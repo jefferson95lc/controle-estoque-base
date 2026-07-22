@@ -131,57 +131,33 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader><CardTitle className="font-heading text-lg">Produtos com Estoque Baixo</CardTitle></CardHeader>
-          <CardContent>
-            {lowStock.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum produto abaixo do estoque mínimo.</p>
-            ) : (
-              <div className="space-y-2">
-                {lowStock.map(p => {
-                  const qty = getStock(p.id, activeCenterId);
-                  const min = getMinStock(p.id, activeCenterId);
-                  return (
-                    <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-destructive/10">
-                      <span className="text-sm font-medium">{p.name}</span>
-                      <span className="text-sm text-destructive font-semibold">{qty}/{min} {p.unit}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="font-heading text-lg">Últimas Movimentações</CardTitle></CardHeader>
-          <CardContent>
-            {recentMovements.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma movimentação registrada.</p>
-            ) : (
-              <div className="space-y-2">
-                {recentMovements.map(m => (
-                  <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-secondary">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{getProductName(m.productId)}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {m.type === 'transferencia'
-                          ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
-                          : getCenterName(m.costCenterId)}
-                        {' · '}{format(new Date(m.date), 'dd/MM/yyyy', { locale: ptBR })}
-                      </p>
-                    </div>
-                    <Badge variant={m.type === 'entrada' ? 'default' : m.type === 'saida' ? 'destructive' : 'secondary'}>
-                      {m.type === 'entrada' ? '↑' : m.type === 'saida' ? '↓' : '⇄'} {m.quantity}
-                    </Badge>
+      <Card>
+        <CardHeader><CardTitle className="font-heading text-lg">Últimas Movimentações</CardTitle></CardHeader>
+        <CardContent>
+          {recentMovements.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma movimentação registrada.</p>
+          ) : (
+            <div className="space-y-2">
+              {recentMovements.map(m => (
+                <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded-md bg-secondary">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{getProductName(m.productId)}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {m.type === 'transferencia'
+                        ? `${getCenterName(m.costCenterId)} → ${getCenterName(m.destinationCenterId)}`
+                        : getCenterName(m.costCenterId)}
+                      {' · '}{format(new Date(m.date), 'dd/MM/yyyy', { locale: ptBR })}
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  <Badge variant={m.type === 'entrada' ? 'default' : m.type === 'saida' ? 'destructive' : 'secondary'}>
+                    {m.type === 'entrada' ? '↑' : m.type === 'saida' ? '↓' : '⇄'} {m.quantity}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <ForecastCard />
     </div>
