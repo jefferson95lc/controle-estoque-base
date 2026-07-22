@@ -535,25 +535,6 @@ export default function StockPage() {
         </DialogContent>
       </Dialog>
 
-      {lowStock.length > 0 && (
-        <Card className="border-warning/30 bg-warning/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="font-heading text-base flex items-center gap-2">
-              <AlertTriangle size={18} className="text-warning" />
-              Produtos abaixo do estoque mínimo ({lowStock.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {lowStock.map(p => (
-                <Badge key={p.id} variant="outline" className="border-warning/50 text-warning">
-                  {p.name}: {getStock(p.id, activeCenterId)}/{getMinStock(p.id, activeCenterId)}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <Card>
         <CardContent className="p-0">
