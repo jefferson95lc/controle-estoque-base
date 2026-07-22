@@ -197,8 +197,8 @@ export default function StockPage() {
     if (!unitCost || isNaN(cost) || cost <= 0) {
       toast({ title: 'Valor obrigatório', description: 'Informe o valor unitário.', variant: 'destructive' }); return;
     }
-    setQueueIn(q => [...q, { productId, quantity, reason, centerId, movDate, unitCost, clientRequestId: crypto.randomUUID() }]);
-    setProductId(''); setQuantity(1); setUnitCost('');
+    setQueueIn(q => [...q, { productId, quantity, reason, centerId, movDate, unitCost, invoiceNumber, clientRequestId: crypto.randomUUID() }]);
+    setProductId(''); setQuantity(1); setUnitCost(''); setInvoiceNumber('');
   };
   const addOutToQueue = () => {
     if (!productId || !reason || quantity <= 0 || !centerId) {
