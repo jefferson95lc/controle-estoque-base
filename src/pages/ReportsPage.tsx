@@ -218,6 +218,7 @@ export default function ReportsPage() {
                 <th className="text-center p-3 font-medium">Qtd</th>
                 <th className="text-right p-3 font-medium">Valor Unit.</th>
                 <th className="text-right p-3 font-medium">Total</th>
+                <th className="text-left p-3 font-medium">NF</th>
                 <th className="text-left p-3 font-medium">Motivo</th>
                 <th className="text-left p-3 font-medium">Usuário</th>
               </tr>
