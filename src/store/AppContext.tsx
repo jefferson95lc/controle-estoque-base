@@ -383,10 +383,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       destination_center_id: m.destinationCenterId || null,
       user_id: currentUserId,
       unit_cost: m.unitCost != null ? m.unitCost : null,
+      invoice_number: m.invoiceNumber || null,
     };
     const { data, error } = await supabase
       .from('stock_movements')
-      .insert(payload)
+      .insert(payload as any)
       .select()
       .single();
     if (error) {
@@ -403,18 +404,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       costCenterId: data.cost_center_id, destinationCenterId: data.destination_center_id || undefined,
       userId: data.user_id || undefined,
       unitCost: (data as any).unit_cost != null ? Number((data as any).unit_cost) : undefined,
+      invoiceNumber: (data as any).invoice_number || undefined,
     };
     setMovements(prev => [...prev, mov]);
     return mov;
   }, []);
 
-  const addStockIn = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, unitCost?: number, clientRequestId?: string): Promise<boolean> => {
+  const addStockIn = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, unitCost?: number, clientRequestId?: string, invoiceNumber?: string): Promise<boolean> => {
     if (!isFilial(costCenterId)) return false;
     const mov = await insertMovement({
       productId, type: 'entrada', quantity, reason,
       date: date || new Date().toISOString(), costCenterId,
       unitCost,
       clientRequestId,
+      invoiceNumber,
     });
     return !!mov;
   }, [isFilial, insertMovement]);
