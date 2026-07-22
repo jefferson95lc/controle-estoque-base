@@ -39,13 +39,14 @@ export default function StockPage() {
   const [centerId, setCenterId] = useState<string>('');
   const [destCenterId, setDestCenterId] = useState<string>('');
   const [unitCost, setUnitCost] = useState<string>('');
+  const [invoiceNumber, setInvoiceNumber] = useState<string>('');
 
   const [confirmType, setConfirmType] = useState<null | 'entrada' | 'saida' | 'transferencia'>(null);
   const [submitting, setSubmitting] = useState(false);
   const pendingRequestId = useRef<string | null>(null);
 
   // Filas de lançamentos (carrinho local)
-  type QueueInItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string; unitCost: string; clientRequestId: string };
+  type QueueInItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string; unitCost: string; invoiceNumber: string; clientRequestId: string };
   type QueueOutItem = { productId: string; quantity: number; reason: string; centerId: string; movDate: string; clientRequestId: string };
   type QueueTransferItem = { productId: string; quantity: number; centerId: string; destCenterId: string; reason: string; movDate: string; clientRequestId: string };
   const [queueIn, setQueueIn] = useState<QueueInItem[]>([]);
@@ -63,6 +64,7 @@ export default function StockPage() {
     setCenterId(activeCenterId && activeCenterId !== matrizId ? activeCenterId : '');
     setDestCenterId('');
     setUnitCost('');
+    setInvoiceNumber('');
   };
 
   const openIn = () => {
@@ -127,7 +129,7 @@ export default function StockPage() {
   const handleIn = async (clientRequestId: string) => {
     const cost = parseFloat(unitCost.replace(',', '.'));
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
-    const ok = await addStockIn(productId, quantity, reason, centerId, dateISO, cost, clientRequestId);
+    const ok = await addStockIn(productId, quantity, reason, centerId, dateISO, cost, clientRequestId, invoiceNumber.trim() || undefined);
     if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Entrada registrada.' });
     setInOpen(false); resetForm();
@@ -195,8 +197,8 @@ export default function StockPage() {
     if (!unitCost || isNaN(cost) || cost <= 0) {
       toast({ title: 'Valor obrigatório', description: 'Informe o valor unitário.', variant: 'destructive' }); return;
     }
-    setQueueIn(q => [...q, { productId, quantity, reason, centerId, movDate, unitCost, clientRequestId: crypto.randomUUID() }]);
-    setProductId(''); setQuantity(1); setUnitCost('');
+    setQueueIn(q => [...q, { productId, quantity, reason, centerId, movDate, unitCost, invoiceNumber, clientRequestId: crypto.randomUUID() }]);
+    setProductId(''); setQuantity(1); setUnitCost(''); setInvoiceNumber('');
   };
   const addOutToQueue = () => {
     if (!productId || !reason || quantity <= 0 || !centerId) {
@@ -233,7 +235,7 @@ export default function StockPage() {
           const it = queueIn[i];
           const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
           const cost = parseFloat(it.unitCost.replace(',', '.'));
-          const ok = await addStockIn(it.productId, it.quantity, it.reason, it.centerId, dateISO, cost, it.clientRequestId);
+          const ok = await addStockIn(it.productId, it.quantity, it.reason, it.centerId, dateISO, cost, it.clientRequestId, it.invoiceNumber?.trim() || undefined);
           if (ok) { okCount++; running[key(it.productId, it.centerId)] = avail(it.productId, it.centerId) + it.quantity; }
           else { failCount++; failures.push(`${productLabel(it.productId)} (${centerLabel(it.centerId)})`); }
           setBatchProgress({ done: i + 1, total: queueIn.length });
@@ -379,6 +381,14 @@ export default function StockPage() {
                 <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>{IN_REASONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Número da NF (Nota Fiscal)</Label>
+              <Input
+                placeholder="Ex.: 123456"
+                value={invoiceNumber}
+                onChange={e => setInvoiceNumber(e.target.value)}
+              />
             </div>
             {queueIn.length > 0 && (
               <div className="rounded-md border bg-muted/20 p-2 space-y-1 max-h-40 overflow-y-auto">
@@ -597,6 +607,9 @@ export default function StockPage() {
                   )}
                   {confirmType === 'entrada' && (
                     <div><span className="text-muted-foreground">Valor unitário:</span> <strong>{(parseFloat((unitCost || '0').replace(',', '.')) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
+                  )}
+                  {confirmType === 'entrada' && invoiceNumber.trim() && (
+                    <div><span className="text-muted-foreground">NF:</span> <strong>{invoiceNumber.trim()}</strong></div>
                   )}
                   <div><span className="text-muted-foreground">Data:</span> <strong>{movDate}</strong></div>
                   {reason && <div><span className="text-muted-foreground">Motivo:</span> <strong>{reason}</strong></div>}

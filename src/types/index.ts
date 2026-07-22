@@ -40,4 +40,5 @@ export interface StockMovement {
   destinationCenterId?: string;  // only for transferencia
   userId?: string;               // who performed the movement
   unitCost?: number;             // valor unitário (R$) — usado em entradas
+  invoiceNumber?: string;        // número da NF (nota fiscal) — usado em entradas
 }

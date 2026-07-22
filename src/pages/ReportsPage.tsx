@@ -71,12 +71,13 @@ export default function ReportsPage() {
         'Quantidade': m.quantity,
         'Valor Unitário (R$)': hasValue ? m.unitCost : '',
         'Valor Total (R$)': total != null ? total : '',
+        'NF (Nota Fiscal)': m.invoiceNumber || '',
         'Motivo': m.reason,
         'Usuário': getUserEmail(m.userId),
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{ wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 25 }, { wch: 30 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 25 }, { wch: 30 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
     XLSX.writeFile(wb, `relatorio_movimentacoes_${format(new Date(), 'yyyyMMdd')}.xlsx`);
@@ -217,6 +218,7 @@ export default function ReportsPage() {
                 <th className="text-center p-3 font-medium">Qtd</th>
                 <th className="text-right p-3 font-medium">Valor Unit.</th>
                 <th className="text-right p-3 font-medium">Total</th>
+                <th className="text-left p-3 font-medium">NF</th>
                 <th className="text-left p-3 font-medium">Motivo</th>
                 <th className="text-left p-3 font-medium">Usuário</th>
               </tr>
@@ -258,13 +260,14 @@ export default function ReportsPage() {
                     <td className="p-3 text-center font-semibold">{m.quantity}</td>
                     <td className="p-3 text-right text-muted-foreground">{(m.type === 'entrada' || m.type === 'transferencia') ? formatBRL(m.unitCost) : '—'}</td>
                     <td className="p-3 text-right font-medium">{total != null ? formatBRL(total) : '—'}</td>
+                    <td className="p-3 text-muted-foreground font-mono text-xs">{m.invoiceNumber || '—'}</td>
                     <td className="p-3 text-muted-foreground">{m.reason}</td>
                     <td className="p-3 text-muted-foreground">{getUserEmail(m.userId)}</td>
                   </tr>
                 );
               })}
               {filteredMovements.length === 0 && (
-                <tr><td colSpan={isMaster ? 10 : 9} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
+                <tr><td colSpan={isMaster ? 11 : 10} className="p-8 text-center text-muted-foreground">Nenhuma movimentação encontrada.</td></tr>
               )}
             </tbody>
           </table>
