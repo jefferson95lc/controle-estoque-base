@@ -9,10 +9,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Minus, AlertTriangle, ArrowLeftRight, Building2, Trash2, ListPlus } from 'lucide-react';
+import { Plus, Minus, ArrowLeftRight, Building2, Trash2, ListPlus } from 'lucide-react';
 import { StockBulkImport } from '@/components/StockBulkImport';
 import { ProductCombobox } from '@/components/ProductCombobox';
-import { MinStockCell } from '@/components/MinStockCell';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -25,7 +24,6 @@ export default function StockPage() {
   const {
     products, filiais, matrizId, activeCenterId, setActiveCenterId,
     addStockIn, addStockOut, transferStock, getStock, costCenters,
-    getMinStock, setProductMinStockForCenter,
   } = useApp();
   const { isMaster } = useAuth();
   const { toast } = useToast();
@@ -59,10 +57,6 @@ export default function StockPage() {
   const isConsolidated = !activeCenterId || activeCenterId === matrizId;
   const viewingCenter = isConsolidated ? null : costCenters.find(c => c.id === activeCenterId) || null;
 
-  const lowStock = useMemo(
-    () => products.filter(p => getStock(p.id, activeCenterId) <= getMinStock(p.id, activeCenterId)),
-    [products, getStock, getMinStock, activeCenterId]
-  );
 
   const resetForm = () => {
     setProductId(''); setQuantity(1); setReason(''); setMovDate(todayStr());
@@ -575,44 +569,24 @@ export default function StockPage() {
                 {isConsolidated && filiais.map(f => (
                   <th key={f.id} className="text-center p-3 font-medium text-xs text-muted-foreground whitespace-nowrap">{f.name}</th>
                 ))}
-                <th className="text-center p-3 font-medium">Mín.</th>
-                <th className="text-center p-3 font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
               {products.map(p => {
                 const qty = getStock(p.id, activeCenterId);
-                const effectiveMin = getMinStock(p.id, activeCenterId);
-                const isLow = qty <= effectiveMin;
                 return (
-                  <tr key={p.id} className={`border-b last:border-0 transition-colors ${isLow ? 'bg-destructive/5' : 'hover:bg-muted/30'}`}>
+                  <tr key={p.id} className="border-b last:border-0 transition-colors hover:bg-muted/30">
                     <td className="p-3 font-medium">{p.name}</td>
                     <td className="p-3 text-muted-foreground font-mono text-xs">{p.sku}</td>
-                    <td className={`p-3 text-center font-semibold ${isLow ? 'text-destructive' : ''}`}>{qty} {p.unit}</td>
+                    <td className="p-3 text-center font-semibold">{qty} {p.unit}</td>
                     {isConsolidated && filiais.map(f => (
                       <td key={f.id} className="p-3 text-center text-muted-foreground">{getStock(p.id, f.id)}</td>
                     ))}
-                    <td className="p-3 text-center">
-                      {isConsolidated ? (
-                        <span className="text-muted-foreground">{effectiveMin}</span>
-                      ) : (
-                        <MinStockCell
-                          productId={p.id}
-                          centerId={activeCenterId!}
-                          generalMin={p.minStock}
-                          effectiveMin={effectiveMin}
-                          onSave={setProductMinStockForCenter}
-                        />
-                      )}
-                    </td>
-                    <td className="p-3 text-center">
-                      {isLow ? <Badge variant="destructive">Baixo</Badge> : <Badge variant="secondary">OK</Badge>}
-                    </td>
                   </tr>
                 );
               })}
               {products.length === 0 && (
-                <tr><td colSpan={isConsolidated ? 5 + filiais.length : 5} className="p-8 text-center text-muted-foreground">Nenhum produto cadastrado.</td></tr>
+                <tr><td colSpan={isConsolidated ? 3 + filiais.length : 3} className="p-8 text-center text-muted-foreground">Nenhum produto cadastrado.</td></tr>
               )}
             </tbody>
           </table>
