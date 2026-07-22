@@ -235,7 +235,7 @@ export default function StockPage() {
           const it = queueIn[i];
           const dateISO = it.movDate ? new Date(it.movDate + 'T12:00:00').toISOString() : undefined;
           const cost = parseFloat(it.unitCost.replace(',', '.'));
-          const ok = await addStockIn(it.productId, it.quantity, it.reason, it.centerId, dateISO, cost, it.clientRequestId);
+          const ok = await addStockIn(it.productId, it.quantity, it.reason, it.centerId, dateISO, cost, it.clientRequestId, it.invoiceNumber?.trim() || undefined);
           if (ok) { okCount++; running[key(it.productId, it.centerId)] = avail(it.productId, it.centerId) + it.quantity; }
           else { failCount++; failures.push(`${productLabel(it.productId)} (${centerLabel(it.centerId)})`); }
           setBatchProgress({ done: i + 1, total: queueIn.length });
