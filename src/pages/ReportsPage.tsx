@@ -71,12 +71,13 @@ export default function ReportsPage() {
         'Quantidade': m.quantity,
         'Valor Unitário (R$)': hasValue ? m.unitCost : '',
         'Valor Total (R$)': total != null ? total : '',
+        'NF (Nota Fiscal)': m.invoiceNumber || '',
         'Motivo': m.reason,
         'Usuário': getUserEmail(m.userId),
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);
-    ws['!cols'] = [{ wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 25 }, { wch: 30 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 25 }, { wch: 30 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
     XLSX.writeFile(wb, `relatorio_movimentacoes_${format(new Date(), 'yyyyMMdd')}.xlsx`);
