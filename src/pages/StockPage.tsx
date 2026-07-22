@@ -608,6 +608,9 @@ export default function StockPage() {
                   {confirmType === 'entrada' && (
                     <div><span className="text-muted-foreground">Valor unitário:</span> <strong>{(parseFloat((unitCost || '0').replace(',', '.')) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong></div>
                   )}
+                  {confirmType === 'entrada' && invoiceNumber.trim() && (
+                    <div><span className="text-muted-foreground">NF:</span> <strong>{invoiceNumber.trim()}</strong></div>
+                  )}
                   <div><span className="text-muted-foreground">Data:</span> <strong>{movDate}</strong></div>
                   {reason && <div><span className="text-muted-foreground">Motivo:</span> <strong>{reason}</strong></div>}
                 </div>
