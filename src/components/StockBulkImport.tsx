@@ -231,8 +231,11 @@ export function StockBulkImport() {
                 <p className="text-muted-foreground mb-2">
                   {movType === 'transferencia' ? (
                     <>Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>, <code className="text-xs bg-muted px-1 rounded">filial_origem</code>, <code className="text-xs bg-muted px-1 rounded">filial_destino</code>, <code className="text-xs bg-muted px-1 rounded">motivo</code>, <code className="text-xs bg-muted px-1 rounded">data</code></>
+                  ) : movType === 'entrada' ? (
+                    <>Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>, <code className="text-xs bg-muted px-1 rounded">filial</code>, <code className="text-xs bg-muted px-1 rounded">motivo</code>, <code className="text-xs bg-muted px-1 rounded">data</code>, <code className="text-xs bg-muted px-1 rounded">valor_unitario</code>, <code className="text-xs bg-muted px-1 rounded">nf</code></>
                   ) : (
                     <>Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>, <code className="text-xs bg-muted px-1 rounded">filial</code>, <code className="text-xs bg-muted px-1 rounded">motivo</code>, <code className="text-xs bg-muted px-1 rounded">data</code></>
+
                   )}
                 </p>
                 <Button size="sm" variant="secondary" onClick={downloadTemplate}>
