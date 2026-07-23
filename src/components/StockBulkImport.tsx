@@ -170,7 +170,7 @@ export function StockBulkImport() {
       let ok = false;
 
       if (movType === 'entrada') {
-        ok = await addStockIn(r.productId, r.quantity, r.reason, r.costCenterId, dateISO, undefined, r.clientRequestId);
+        ok = await addStockIn(r.productId, r.quantity, r.reason, r.costCenterId, dateISO, r.unitCost, r.clientRequestId, r.invoiceNumber);
       } else if (movType === 'saida') {
         ok = await addStockOut(r.productId, r.quantity, r.reason, r.costCenterId, dateISO, r.clientRequestId);
       } else {
