@@ -307,7 +307,7 @@ export default function StockPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-heading text-2xl font-bold">Estoqu</h1>
+          <h1 className="font-heading text-2xl font-bold">Estoque</h1>
           <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
             <Building2 size={14} />
             {isConsolidated ? 'Consolidado (Matriz) — somente leitura' : `Filial: ${viewingCenter?.name}`}
