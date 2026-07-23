@@ -101,6 +101,10 @@ export function StockBulkImport() {
           const center = filialMap.get(centerName.toLowerCase());
           const dest = destName ? filialMap.get(destName.toLowerCase()) : undefined;
 
+          const unitCostRaw = r.valor_unitario ?? r.valorUnitario ?? r.unit_cost ?? r.valor ?? '';
+          const unitCost = unitCostRaw === '' || unitCostRaw == null ? undefined : Number(String(unitCostRaw).replace(',', '.'));
+          const invoiceNumber = String(r.nf ?? r.nota_fiscal ?? r.invoice ?? r.invoice_number ?? '').trim() || undefined;
+
           if (!productName) errors.push('Produto obrigatório');
           else if (!prod) errors.push('Produto não encontrado');
 
@@ -110,6 +114,10 @@ export function StockBulkImport() {
           else if (!center) errors.push('Filial não encontrada');
 
           if (!reason) errors.push('Motivo obrigatório');
+
+          if (movType === 'entrada') {
+            if (unitCost == null || isNaN(unitCost) || unitCost < 0) errors.push('Valor unitário inválido');
+          }
 
           if (movType === 'transferencia') {
             if (!destName) errors.push('Filial destino obrigatória');
@@ -134,6 +142,8 @@ export function StockBulkImport() {
             costCenterId: center?.id || '',
             destCenterName: destName,
             destCenterId: dest?.id || '',
+            unitCost,
+            invoiceNumber,
             errors,
           };
         });
