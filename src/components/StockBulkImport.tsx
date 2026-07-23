@@ -55,12 +55,17 @@ export function StockBulkImport() {
         [exProduct, 10, exFilial, exFilial2, 'Reabastecimento', '2025-01-15'],
         [exProduct, 5, exFilial, exFilial2, 'Transferência', '2025-01-16'],
       ];
+    } else if (movType === 'entrada') {
+      headers = [['produto', 'quantidade', 'filial', 'motivo', 'data', 'valor_unitario', 'nf']];
+      example = [
+        [exProduct, 10, exFilial, REASONS_IN[0], '2025-01-15', 12.50, 'NF-12345'],
+        [exProduct, 5, exFilial, REASONS_IN[1], '2025-01-16', 12.50, ''],
+      ];
     } else {
       headers = [['produto', 'quantidade', 'filial', 'motivo', 'data']];
-      const reasons = movType === 'entrada' ? REASONS_IN : REASONS_OUT;
       example = [
-        [exProduct, 10, exFilial, reasons[0], '2025-01-15'],
-        [exProduct, 5, exFilial, reasons[1], '2025-01-16'],
+        [exProduct, 10, exFilial, REASONS_OUT[0], '2025-01-15'],
+        [exProduct, 5, exFilial, REASONS_OUT[1], '2025-01-16'],
       ];
     }
 
