@@ -25,6 +25,8 @@ interface ParsedRow {
   costCenterId: string;
   destCenterName: string;
   destCenterId: string;
+  unitCost?: number;
+  invoiceNumber?: string;
   errors: string[];
 }
 
@@ -53,12 +55,17 @@ export function StockBulkImport() {
         [exProduct, 10, exFilial, exFilial2, 'Reabastecimento', '2025-01-15'],
         [exProduct, 5, exFilial, exFilial2, 'Transferência', '2025-01-16'],
       ];
+    } else if (movType === 'entrada') {
+      headers = [['produto', 'quantidade', 'filial', 'motivo', 'data', 'valor_unitario', 'nf']];
+      example = [
+        [exProduct, 10, exFilial, REASONS_IN[0], '2025-01-15', 12.50, 'NF-12345'],
+        [exProduct, 5, exFilial, REASONS_IN[1], '2025-01-16', 12.50, ''],
+      ];
     } else {
       headers = [['produto', 'quantidade', 'filial', 'motivo', 'data']];
-      const reasons = movType === 'entrada' ? REASONS_IN : REASONS_OUT;
       example = [
-        [exProduct, 10, exFilial, reasons[0], '2025-01-15'],
-        [exProduct, 5, exFilial, reasons[1], '2025-01-16'],
+        [exProduct, 10, exFilial, REASONS_OUT[0], '2025-01-15'],
+        [exProduct, 5, exFilial, REASONS_OUT[1], '2025-01-16'],
       ];
     }
 
@@ -94,6 +101,10 @@ export function StockBulkImport() {
           const center = filialMap.get(centerName.toLowerCase());
           const dest = destName ? filialMap.get(destName.toLowerCase()) : undefined;
 
+          const unitCostRaw = r.valor_unitario ?? r.valorUnitario ?? r.unit_cost ?? r.valor ?? '';
+          const unitCost = unitCostRaw === '' || unitCostRaw == null ? undefined : Number(String(unitCostRaw).replace(',', '.'));
+          const invoiceNumber = String(r.nf ?? r.nota_fiscal ?? r.invoice ?? r.invoice_number ?? '').trim() || undefined;
+
           if (!productName) errors.push('Produto obrigatório');
           else if (!prod) errors.push('Produto não encontrado');
 
@@ -103,6 +114,10 @@ export function StockBulkImport() {
           else if (!center) errors.push('Filial não encontrada');
 
           if (!reason) errors.push('Motivo obrigatório');
+
+          if (movType === 'entrada') {
+            if (unitCost == null || isNaN(unitCost) || unitCost < 0) errors.push('Valor unitário inválido');
+          }
 
           if (movType === 'transferencia') {
             if (!destName) errors.push('Filial destino obrigatória');
@@ -127,6 +142,8 @@ export function StockBulkImport() {
             costCenterId: center?.id || '',
             destCenterName: destName,
             destCenterId: dest?.id || '',
+            unitCost,
+            invoiceNumber,
             errors,
           };
         });
@@ -153,7 +170,7 @@ export function StockBulkImport() {
       let ok = false;
 
       if (movType === 'entrada') {
-        ok = await addStockIn(r.productId, r.quantity, r.reason, r.costCenterId, dateISO, undefined, r.clientRequestId);
+        ok = await addStockIn(r.productId, r.quantity, r.reason, r.costCenterId, dateISO, r.unitCost, r.clientRequestId, r.invoiceNumber);
       } else if (movType === 'saida') {
         ok = await addStockOut(r.productId, r.quantity, r.reason, r.costCenterId, dateISO, r.clientRequestId);
       } else {
@@ -214,8 +231,11 @@ export function StockBulkImport() {
                 <p className="text-muted-foreground mb-2">
                   {movType === 'transferencia' ? (
                     <>Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>, <code className="text-xs bg-muted px-1 rounded">filial_origem</code>, <code className="text-xs bg-muted px-1 rounded">filial_destino</code>, <code className="text-xs bg-muted px-1 rounded">motivo</code>, <code className="text-xs bg-muted px-1 rounded">data</code></>
+                  ) : movType === 'entrada' ? (
+                    <>Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>, <code className="text-xs bg-muted px-1 rounded">filial</code>, <code className="text-xs bg-muted px-1 rounded">motivo</code>, <code className="text-xs bg-muted px-1 rounded">data</code>, <code className="text-xs bg-muted px-1 rounded">valor_unitario</code>, <code className="text-xs bg-muted px-1 rounded">nf</code></>
                   ) : (
                     <>Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>, <code className="text-xs bg-muted px-1 rounded">filial</code>, <code className="text-xs bg-muted px-1 rounded">motivo</code>, <code className="text-xs bg-muted px-1 rounded">data</code></>
+
                   )}
                 </p>
                 <Button size="sm" variant="secondary" onClick={downloadTemplate}>
