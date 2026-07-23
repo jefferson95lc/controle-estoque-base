@@ -25,6 +25,8 @@ interface ParsedRow {
   costCenterId: string;
   destCenterName: string;
   destCenterId: string;
+  unitCost?: number;
+  invoiceNumber?: string;
   errors: string[];
 }
 
