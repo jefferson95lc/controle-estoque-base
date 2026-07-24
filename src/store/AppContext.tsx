@@ -376,40 +376,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ===== Movements =====
   const insertMovement = useCallback(async (m: Omit<StockMovement, 'id'>): Promise<StockMovement | null> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const currentUserId = session?.user?.id || null;
-    const payload = {
-      id: m.clientRequestId ?? undefined,
-      product_id: m.productId, type: m.type, quantity: m.quantity,
-      reason: m.reason, date: m.date, cost_center_id: m.costCenterId,
-      destination_center_id: m.destinationCenterId || null,
-      user_id: currentUserId,
-      unit_cost: m.unitCost != null ? m.unitCost : null,
-      invoice_number: m.invoiceNumber || null,
-    };
-    const { data, error } = await supabase
-      .from('stock_movements')
-      .insert(payload as any)
-      .select()
-      .single();
-    if (error) {
-      if ((error as any).code === '23505' && m.clientRequestId) {
-        console.error('Duplicate stock movement prevented by id', { id: m.clientRequestId, payload });
-      } else {
-        console.error(error);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUserId = session?.user?.id || null;
+      const payload = {
+        id: m.clientRequestId ?? undefined,
+        product_id: m.productId, type: m.type, quantity: m.quantity,
+        reason: m.reason, date: m.date, cost_center_id: m.costCenterId,
+        destination_center_id: m.destinationCenterId || null,
+        user_id: currentUserId,
+        unit_cost: m.unitCost != null ? m.unitCost : null,
+        invoice_number: m.invoiceNumber || null,
+      };
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .insert(payload as any)
+        .select()
+        .single();
+      if (error) {
+        console.error('insertMovement error', error, payload);
+        setLastMovementError(error.message || 'Falha ao inserir movimentação.');
+        return null;
       }
+      if (!data) {
+        setLastMovementError('Resposta vazia do servidor ao registrar movimentação.');
+        return null;
+      }
+      const mov: StockMovement = {
+        id: data.id, productId: data.product_id, type: data.type as StockMovement['type'],
+        quantity: data.quantity, reason: data.reason, date: data.date,
+        costCenterId: data.cost_center_id, destinationCenterId: data.destination_center_id || undefined,
+        userId: data.user_id || undefined,
+        unitCost: (data as any).unit_cost != null ? Number((data as any).unit_cost) : undefined,
+        invoiceNumber: (data as any).invoice_number || undefined,
+      };
+      setMovements(prev => [...prev, mov]);
+      setLastMovementError(null);
+      return mov;
+    } catch (e: any) {
+      console.error('insertMovement exception', e);
+      setLastMovementError(e?.message || 'Erro inesperado ao registrar movimentação.');
       return null;
     }
-    const mov: StockMovement = {
-      id: data.id, productId: data.product_id, type: data.type as StockMovement['type'],
-      quantity: data.quantity, reason: data.reason, date: data.date,
-      costCenterId: data.cost_center_id, destinationCenterId: data.destination_center_id || undefined,
-      userId: data.user_id || undefined,
-      unitCost: (data as any).unit_cost != null ? Number((data as any).unit_cost) : undefined,
-      invoiceNumber: (data as any).invoice_number || undefined,
-    };
-    setMovements(prev => [...prev, mov]);
-    return mov;
   }, []);
 
   const addStockIn = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, unitCost?: number, clientRequestId?: string, invoiceNumber?: string): Promise<boolean> => {
