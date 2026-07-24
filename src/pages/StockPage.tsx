@@ -147,7 +147,7 @@ export default function StockPage() {
       return;
     }
     const ok = await addStockOut(productId, quantity, reason, centerId, dateISO, clientRequestId);
-    if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar a saída.', variant: 'destructive' }); return; }
+    if (!ok) { toast({ title: 'Erro ao registrar saída', description: lastMovementError || 'Não foi possível registrar a saída.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Saída registrada.' });
     setOutOpen(false); resetForm();
   };
