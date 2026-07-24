@@ -87,6 +87,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeCenterId, setActiveCenterId] = useState<string | null>(null);
   const [isMaster, setIsMaster] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
+  const [lastMovementError, setLastMovementError] = useState<string | null>(null);
 
   const stockByCenter = useMemo(() => buildStockMap(movements), [movements]);
 
