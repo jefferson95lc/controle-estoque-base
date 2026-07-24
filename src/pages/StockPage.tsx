@@ -23,7 +23,7 @@ const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 export default function StockPage() {
   const {
     products, filiais, matrizId, activeCenterId, setActiveCenterId,
-    addStockIn, addStockOut, transferStock, getStock, costCenters,
+    addStockIn, addStockOut, transferStock, getStock, costCenters, lastMovementError,
   } = useApp();
   const { isMaster } = useAuth();
   const { toast } = useToast();
