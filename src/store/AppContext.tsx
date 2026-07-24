@@ -37,6 +37,7 @@ interface AppState {
   setProductMinStockForCenter: (productId: string, costCenterId: string, minStock: number | null) => Promise<boolean>;
   clearAllMovements: () => Promise<{ ok: boolean; error?: string }>;
   deleteMovements: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
+  lastMovementError: string | null;
   matrizId: string | null;
   filiais: CostCenter[];
   isMaster: boolean;
@@ -86,6 +87,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeCenterId, setActiveCenterId] = useState<string | null>(null);
   const [isMaster, setIsMaster] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
+  const [lastMovementError, setLastMovementError] = useState<string | null>(null);
 
   const stockByCenter = useMemo(() => buildStockMap(movements), [movements]);
 
@@ -374,44 +376,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ===== Movements =====
   const insertMovement = useCallback(async (m: Omit<StockMovement, 'id'>): Promise<StockMovement | null> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const currentUserId = session?.user?.id || null;
-    const payload = {
-      id: m.clientRequestId ?? undefined,
-      product_id: m.productId, type: m.type, quantity: m.quantity,
-      reason: m.reason, date: m.date, cost_center_id: m.costCenterId,
-      destination_center_id: m.destinationCenterId || null,
-      user_id: currentUserId,
-      unit_cost: m.unitCost != null ? m.unitCost : null,
-      invoice_number: m.invoiceNumber || null,
-    };
-    const { data, error } = await supabase
-      .from('stock_movements')
-      .insert(payload as any)
-      .select()
-      .single();
-    if (error) {
-      if ((error as any).code === '23505' && m.clientRequestId) {
-        console.error('Duplicate stock movement prevented by id', { id: m.clientRequestId, payload });
-      } else {
-        console.error(error);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUserId = session?.user?.id || null;
+      const payload = {
+        id: m.clientRequestId ?? undefined,
+        product_id: m.productId, type: m.type, quantity: m.quantity,
+        reason: m.reason, date: m.date, cost_center_id: m.costCenterId,
+        destination_center_id: m.destinationCenterId || null,
+        user_id: currentUserId,
+        unit_cost: m.unitCost != null ? m.unitCost : null,
+        invoice_number: m.invoiceNumber || null,
+      };
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .insert(payload as any)
+        .select()
+        .single();
+      if (error) {
+        console.error('insertMovement error', error, payload);
+        setLastMovementError(error.message || 'Falha ao inserir movimentação.');
+        return null;
       }
+      if (!data) {
+        setLastMovementError('Resposta vazia do servidor ao registrar movimentação.');
+        return null;
+      }
+      const mov: StockMovement = {
+        id: data.id, productId: data.product_id, type: data.type as StockMovement['type'],
+        quantity: data.quantity, reason: data.reason, date: data.date,
+        costCenterId: data.cost_center_id, destinationCenterId: data.destination_center_id || undefined,
+        userId: data.user_id || undefined,
+        unitCost: (data as any).unit_cost != null ? Number((data as any).unit_cost) : undefined,
+        invoiceNumber: (data as any).invoice_number || undefined,
+      };
+      setMovements(prev => [...prev, mov]);
+      setLastMovementError(null);
+      return mov;
+    } catch (e: any) {
+      console.error('insertMovement exception', e);
+      setLastMovementError(e?.message || 'Erro inesperado ao registrar movimentação.');
       return null;
     }
-    const mov: StockMovement = {
-      id: data.id, productId: data.product_id, type: data.type as StockMovement['type'],
-      quantity: data.quantity, reason: data.reason, date: data.date,
-      costCenterId: data.cost_center_id, destinationCenterId: data.destination_center_id || undefined,
-      userId: data.user_id || undefined,
-      unitCost: (data as any).unit_cost != null ? Number((data as any).unit_cost) : undefined,
-      invoiceNumber: (data as any).invoice_number || undefined,
-    };
-    setMovements(prev => [...prev, mov]);
-    return mov;
   }, []);
 
   const addStockIn = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, unitCost?: number, clientRequestId?: string, invoiceNumber?: string): Promise<boolean> => {
-    if (!isFilial(costCenterId)) return false;
+    if (!isFilial(costCenterId)) {
+      setLastMovementError('Selecione uma filial válida para registrar a entrada.');
+      return false;
+    }
     const mov = await insertMovement({
       productId, type: 'entrada', quantity, reason,
       date: date || new Date().toISOString(), costCenterId,
@@ -423,9 +436,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [isFilial, insertMovement]);
 
   const addStockOut = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, clientRequestId?: string): Promise<boolean> => {
-    if (!isFilial(costCenterId)) return false;
+    if (!isFilial(costCenterId)) {
+      setLastMovementError('Selecione uma filial válida para registrar a saída.');
+      return false;
+    }
     const current = (stockByCenter[productId]?.[costCenterId]) || 0;
-    if (current < quantity) return false;
+    if (current < quantity) {
+      setLastMovementError(`Estoque insuficiente na filial (disponível: ${current}).`);
+      return false;
+    }
     const mov = await insertMovement({
       productId, type: 'saida', quantity, reason,
       date: date || new Date().toISOString(), costCenterId,
@@ -435,9 +454,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [isFilial, stockByCenter, insertMovement]);
 
   const transferStock = useCallback(async (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string, clientRequestId?: string): Promise<boolean> => {
-    if (!isFilial(fromId) || !isFilial(toId) || fromId === toId) return false;
+    if (!isFilial(fromId) || !isFilial(toId) || fromId === toId) {
+      setLastMovementError('Origem e destino devem ser filiais distintas e válidas.');
+      return false;
+    }
     const current = (stockByCenter[productId]?.[fromId]) || 0;
-    if (current < quantity) return false;
+    if (current < quantity) {
+      setLastMovementError(`Estoque insuficiente na origem (disponível: ${current}).`);
+      return false;
+    }
     // Pega o último custo unitário conhecido do produto (prefere a filial de origem, fallback global)
     const entradas = movements
       .filter(m => m.productId === productId && m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
@@ -489,6 +514,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProductMinStockForCenter,
       clearAllMovements,
       deleteMovements,
+      lastMovementError,
       matrizId: matriz?.id || null,
       filiais,
       isMaster,

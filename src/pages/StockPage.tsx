@@ -23,7 +23,7 @@ const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 export default function StockPage() {
   const {
     products, filiais, matrizId, activeCenterId, setActiveCenterId,
-    addStockIn, addStockOut, transferStock, getStock, costCenters,
+    addStockIn, addStockOut, transferStock, getStock, costCenters, lastMovementError,
   } = useApp();
   const { isMaster } = useAuth();
   const { toast } = useToast();
@@ -130,7 +130,7 @@ export default function StockPage() {
     const cost = parseFloat(unitCost.replace(',', '.'));
     const dateISO = movDate ? new Date(movDate + 'T12:00:00').toISOString() : undefined;
     const ok = await addStockIn(productId, quantity, reason, centerId, dateISO, cost, clientRequestId, invoiceNumber.trim() || undefined);
-    if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar.', variant: 'destructive' }); return; }
+    if (!ok) { toast({ title: 'Erro ao registrar entrada', description: lastMovementError || 'Não foi possível registrar.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Entrada registrada.' });
     setInOpen(false); resetForm();
   };
@@ -147,7 +147,7 @@ export default function StockPage() {
       return;
     }
     const ok = await addStockOut(productId, quantity, reason, centerId, dateISO, clientRequestId);
-    if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar a saída.', variant: 'destructive' }); return; }
+    if (!ok) { toast({ title: 'Erro ao registrar saída', description: lastMovementError || 'Não foi possível registrar a saída.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Saída registrada.' });
     setOutOpen(false); resetForm();
   };
@@ -164,7 +164,7 @@ export default function StockPage() {
       return;
     }
     const ok = await transferStock(productId, quantity, centerId, destCenterId, reason, dateISO, clientRequestId);
-    if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar a transferência.', variant: 'destructive' }); return; }
+    if (!ok) { toast({ title: 'Erro ao registrar transferência', description: lastMovementError || 'Não foi possível registrar a transferência.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Transferência registrada.' });
     setTransferOpen(false); resetForm();
   };
