@@ -37,6 +37,7 @@ interface AppState {
   setProductMinStockForCenter: (productId: string, costCenterId: string, minStock: number | null) => Promise<boolean>;
   clearAllMovements: () => Promise<{ ok: boolean; error?: string }>;
   deleteMovements: (ids: string[]) => Promise<{ ok: boolean; error?: string }>;
+  lastMovementError: string | null;
   matrizId: string | null;
   filiais: CostCenter[];
   isMaster: boolean;
