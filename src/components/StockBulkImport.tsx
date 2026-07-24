@@ -30,6 +30,42 @@ interface ParsedRow {
   errors: string[];
 }
 
+const formatExcelSerialDate = (serial: number) => {
+  const utcDays = Math.floor(serial - 25569);
+  const utcValue = utcDays * 86400;
+  const date = new Date(utcValue * 1000);
+
+  if (Number.isNaN(date.getTime())) return '';
+
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const year = date.getUTCFullYear();
+
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeImportDate = (value: unknown) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return formatExcelSerialDate(value);
+  }
+
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+
+  const ddmmyyyy = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy;
+    return `${year}-${month}-${day}`;
+  }
+
+  const yyyymmdd = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (yyyymmdd) {
+    return raw;
+  }
+
+  return '';
+};
+
 export function StockBulkImport() {
   const { products, filiais, addStockIn, addStockOut, transferStock, getStock } = useApp();
   const [open, setOpen] = useState(false);
@@ -52,20 +88,20 @@ export function StockBulkImport() {
     if (movType === 'transferencia') {
       headers = [['produto', 'quantidade', 'filial_origem', 'filial_destino', 'motivo', 'data']];
       example = [
-        [exProduct, 10, exFilial, exFilial2, 'Reabastecimento', '2025-01-15'],
-        [exProduct, 5, exFilial, exFilial2, 'Transferência', '2025-01-16'],
+        [exProduct, 10, exFilial, exFilial2, 'Reabastecimento', '15-01-2025'],
+        [exProduct, 5, exFilial, exFilial2, 'Transferência', '16-01-2025'],
       ];
     } else if (movType === 'entrada') {
       headers = [['produto', 'quantidade', 'filial', 'motivo', 'data', 'valor_unitario', 'nf']];
       example = [
-        [exProduct, 10, exFilial, REASONS_IN[0], '2025-01-15', 12.50, 'NF-12345'],
-        [exProduct, 5, exFilial, REASONS_IN[1], '2025-01-16', 12.50, ''],
+        [exProduct, 10, exFilial, REASONS_IN[0], '15-01-2025', 12.5, 'NF-12345'],
+        [exProduct, 5, exFilial, REASONS_IN[1], '16-01-2025', 12.5, ''],
       ];
     } else {
       headers = [['produto', 'quantidade', 'filial', 'motivo', 'data']];
       example = [
-        [exProduct, 10, exFilial, REASONS_OUT[0], '2025-01-15'],
-        [exProduct, 5, exFilial, REASONS_OUT[1], '2025-01-16'],
+        [exProduct, 10, exFilial, REASONS_OUT[0], '15-01-2025'],
+        [exProduct, 5, exFilial, REASONS_OUT[1], '16-01-2025'],
       ];
     }
 
@@ -80,7 +116,7 @@ export function StockBulkImport() {
   const handleFile = (file: File) => {
     setFileName(file.name);
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: 'array' });
@@ -93,7 +129,7 @@ export function StockBulkImport() {
           const productName = String(r.produto ?? r.product ?? '').trim();
           const quantityRaw = Number(r.quantidade ?? r.quantity ?? 0);
           const reason = String(r.motivo ?? r.reason ?? '').trim();
-          const dateRaw = String(r.data ?? r.date ?? '').trim();
+          const normalizedDate = normalizeImportDate(r.data ?? r.date ?? '');
           const centerName = String(r.filial ?? r.filial_origem ?? r.cost_center ?? '').trim();
           const destName = String(r.filial_destino ?? r.destination ?? '').trim();
 
@@ -114,6 +150,7 @@ export function StockBulkImport() {
           else if (!center) errors.push('Filial não encontrada');
 
           if (!reason) errors.push('Motivo obrigatório');
+          if (!normalizedDate) errors.push('Data inválida. Use o formato dd-mm-aaaa');
 
           if (movType === 'entrada') {
             if (unitCost == null || isNaN(unitCost) || unitCost < 0) errors.push('Valor unitário inválido');
@@ -137,7 +174,7 @@ export function StockBulkImport() {
             productId: prod?.id || '',
             quantity: quantityRaw,
             reason,
-            date: dateRaw,
+            date: normalizedDate,
             costCenterName: centerName,
             costCenterId: center?.id || '',
             destCenterName: destName,
@@ -166,7 +203,7 @@ export function StockBulkImport() {
     let fail = 0;
 
     for (const r of validRows) {
-      const dateISO = r.date ? new Date(r.date + 'T12:00:00').toISOString() : undefined;
+      const dateISO = r.date ? new Date(`${r.date}T12:00:00`).toISOString() : undefined;
       let ok = false;
 
       if (movType === 'entrada') {
@@ -201,9 +238,18 @@ export function StockBulkImport() {
   const typeLabel = movType === 'entrada' ? 'Entradas' : movType === 'saida' ? 'Saídas' : 'Transferências';
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={v => {
+        setOpen(v);
+        if (!v) reset();
+      }}
+    >
       <DialogTrigger asChild>
-        <Button variant="outline"><Upload size={16} className="mr-2" />Importar Excel</Button>
+        <Button variant="outline">
+          <Upload size={16} className="mr-2" />
+          Importar Excel
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
@@ -213,8 +259,16 @@ export function StockBulkImport() {
         <div className="space-y-4">
           <div>
             <Label>Tipo de Movimentação</Label>
-            <Select value={movType} onValueChange={(v) => { setMovType(v as MovType); reset(); }}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={movType}
+              onValueChange={v => {
+                setMovType(v as MovType);
+                reset();
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="entrada">Entrada</SelectItem>
                 <SelectItem value="saida">Saída</SelectItem>
@@ -229,17 +283,33 @@ export function StockBulkImport() {
               <div className="flex-1 text-sm">
                 <p className="font-medium mb-1">Formato esperado — {typeLabel}</p>
                 <p className="text-muted-foreground mb-2">
+                  Data no formato <code className="text-xs bg-muted px-1 rounded">dd-mm-aaaa</code>.
+                </p>
+                <p className="text-muted-foreground mb-2">
                   {movType === 'transferencia' ? (
-                    <>Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>, <code className="text-xs bg-muted px-1 rounded">filial_origem</code>, <code className="text-xs bg-muted px-1 rounded">filial_destino</code>, <code className="text-xs bg-muted px-1 rounded">motivo</code>, <code className="text-xs bg-muted px-1 rounded">data</code></>
+                    <>
+                      Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>,{' '}
+                      <code className="text-xs bg-muted px-1 rounded">filial_origem</code>, <code className="text-xs bg-muted px-1 rounded">filial_destino</code>,{' '}
+                      <code className="text-xs bg-muted px-1 rounded">motivo</code>, <code className="text-xs bg-muted px-1 rounded">data</code>
+                    </>
                   ) : movType === 'entrada' ? (
-                    <>Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>, <code className="text-xs bg-muted px-1 rounded">filial</code>, <code className="text-xs bg-muted px-1 rounded">motivo</code>, <code className="text-xs bg-muted px-1 rounded">data</code>, <code className="text-xs bg-muted px-1 rounded">valor_unitario</code>, <code className="text-xs bg-muted px-1 rounded">nf</code></>
+                    <>
+                      Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>,{' '}
+                      <code className="text-xs bg-muted px-1 rounded">filial</code>, <code className="text-xs bg-muted px-1 rounded">motivo</code>,{' '}
+                      <code className="text-xs bg-muted px-1 rounded">data</code>, <code className="text-xs bg-muted px-1 rounded">valor_unitario</code>,{' '}
+                      <code className="text-xs bg-muted px-1 rounded">nf</code>
+                    </>
                   ) : (
-                    <>Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>, <code className="text-xs bg-muted px-1 rounded">filial</code>, <code className="text-xs bg-muted px-1 rounded">motivo</code>, <code className="text-xs bg-muted px-1 rounded">data</code></>
-
+                    <>
+                      Colunas: <code className="text-xs bg-muted px-1 rounded">produto</code>, <code className="text-xs bg-muted px-1 rounded">quantidade</code>,{' '}
+                      <code className="text-xs bg-muted px-1 rounded">filial</code>, <code className="text-xs bg-muted px-1 rounded">motivo</code>,{' '}
+                      <code className="text-xs bg-muted px-1 rounded">data</code>
+                    </>
                   )}
                 </p>
                 <Button size="sm" variant="secondary" onClick={downloadTemplate}>
-                  <Download size={14} className="mr-2" />Baixar template
+                  <Download size={14} className="mr-2" />
+                  Baixar template
                 </Button>
               </div>
             </div>
@@ -251,7 +321,7 @@ export function StockBulkImport() {
               type="file"
               accept=".xlsx,.xls"
               className="hidden"
-              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+              onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
             />
             <Button variant="outline" className="w-full" onClick={() => fileRef.current?.click()}>
               <Upload size={16} className="mr-2" />
@@ -317,7 +387,15 @@ export function StockBulkImport() {
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => { reset(); setOpen(false); }}>Cancelar</Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              reset();
+              setOpen(false);
+            }}
+          >
+            Cancelar
+          </Button>
           <Button onClick={handleImport} disabled={validRows.length === 0 || importing}>
             {importing ? 'Importando...' : `Importar ${validRows.length > 0 ? `(${validRows.length})` : ''}`}
           </Button>
