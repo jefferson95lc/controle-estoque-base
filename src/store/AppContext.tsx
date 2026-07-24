@@ -514,6 +514,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProductMinStockForCenter,
       clearAllMovements,
       deleteMovements,
+      lastMovementError,
       matrizId: matriz?.id || null,
       filiais,
       isMaster,
