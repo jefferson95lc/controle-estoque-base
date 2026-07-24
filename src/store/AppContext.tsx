@@ -421,7 +421,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addStockIn = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, unitCost?: number, clientRequestId?: string, invoiceNumber?: string): Promise<boolean> => {
-    if (!isFilial(costCenterId)) return false;
+    if (!isFilial(costCenterId)) {
+      setLastMovementError('Selecione uma filial válida para registrar a entrada.');
+      return false;
+    }
     const mov = await insertMovement({
       productId, type: 'entrada', quantity, reason,
       date: date || new Date().toISOString(), costCenterId,
@@ -433,9 +436,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [isFilial, insertMovement]);
 
   const addStockOut = useCallback(async (productId: string, quantity: number, reason: string, costCenterId: string, date?: string, clientRequestId?: string): Promise<boolean> => {
-    if (!isFilial(costCenterId)) return false;
+    if (!isFilial(costCenterId)) {
+      setLastMovementError('Selecione uma filial válida para registrar a saída.');
+      return false;
+    }
     const current = (stockByCenter[productId]?.[costCenterId]) || 0;
-    if (current < quantity) return false;
+    if (current < quantity) {
+      setLastMovementError(`Estoque insuficiente na filial (disponível: ${current}).`);
+      return false;
+    }
     const mov = await insertMovement({
       productId, type: 'saida', quantity, reason,
       date: date || new Date().toISOString(), costCenterId,
@@ -445,9 +454,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [isFilial, stockByCenter, insertMovement]);
 
   const transferStock = useCallback(async (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string, clientRequestId?: string): Promise<boolean> => {
-    if (!isFilial(fromId) || !isFilial(toId) || fromId === toId) return false;
+    if (!isFilial(fromId) || !isFilial(toId) || fromId === toId) {
+      setLastMovementError('Origem e destino devem ser filiais distintas e válidas.');
+      return false;
+    }
     const current = (stockByCenter[productId]?.[fromId]) || 0;
-    if (current < quantity) return false;
+    if (current < quantity) {
+      setLastMovementError(`Estoque insuficiente na origem (disponível: ${current}).`);
+      return false;
+    }
     // Pega o último custo unitário conhecido do produto (prefere a filial de origem, fallback global)
     const entradas = movements
       .filter(m => m.productId === productId && m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
