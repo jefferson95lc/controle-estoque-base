@@ -164,7 +164,7 @@ export default function StockPage() {
       return;
     }
     const ok = await transferStock(productId, quantity, centerId, destCenterId, reason, dateISO, clientRequestId);
-    if (!ok) { toast({ title: 'Erro', description: 'Não foi possível registrar a transferência.', variant: 'destructive' }); return; }
+    if (!ok) { toast({ title: 'Erro ao registrar transferência', description: lastMovementError || 'Não foi possível registrar a transferência.', variant: 'destructive' }); return; }
     toast({ title: 'Sucesso', description: 'Transferência registrada.' });
     setTransferOpen(false); resetForm();
   };
