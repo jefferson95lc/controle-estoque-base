@@ -59,7 +59,7 @@ export default function ReportsPage() {
 
   const exportToExcel = () => {
     const data = filteredMovements.map(m => {
-      const hasValue = (m.type === 'entrada' || m.type === 'transferencia') && m.unitCost != null;
+      const hasValue = m.unitCost != null;
       const total = hasValue ? (m.unitCost as number) * m.quantity : null;
       return {
         'Data': format(parseISO(m.date), 'dd/MM/yyyy', { locale: ptBR }),
