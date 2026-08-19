@@ -445,13 +445,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLastMovementError(`Estoque insuficiente na filial (disponível: ${current}).`);
       return false;
     }
+    // Valoriza a saída com o último custo de entrada (prioriza a própria filial)
+    const entradasOut = movements
+      .filter(m => m.productId === productId && m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const unitCostOut = entradasOut.find(m => m.costCenterId === costCenterId)?.unitCost ?? entradasOut[0]?.unitCost;
     const mov = await insertMovement({
       productId, type: 'saida', quantity, reason,
       date: date || new Date().toISOString(), costCenterId,
+      unitCost: unitCostOut,
       clientRequestId,
     });
     return !!mov;
-  }, [isFilial, stockByCenter, insertMovement]);
+  }, [isFilial, stockByCenter, movements, insertMovement]);
 
   const transferStock = useCallback(async (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string, clientRequestId?: string): Promise<boolean> => {
     if (!isFilial(fromId) || !isFilial(toId) || fromId === toId) {
