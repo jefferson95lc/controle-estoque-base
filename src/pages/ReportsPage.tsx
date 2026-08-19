@@ -258,7 +258,7 @@ export default function ReportsPage() {
                         : getCenterName(m.costCenterId)}
                     </td>
                     <td className="p-3 text-center font-semibold">{m.quantity}</td>
-                    <td className="p-3 text-right text-muted-foreground">{(m.type === 'entrada' || m.type === 'transferencia') ? formatBRL(m.unitCost) : '—'}</td>
+                    <td className="p-3 text-right text-muted-foreground">{formatBRL(m.unitCost)}</td>
                     <td className="p-3 text-right font-medium">{total != null ? formatBRL(total) : '—'}</td>
                     <td className="p-3 text-muted-foreground font-mono text-xs">{m.invoiceNumber || '—'}</td>
                     <td className="p-3 text-muted-foreground">{m.reason}</td>
