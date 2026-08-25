@@ -513,7 +513,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clientRequestId,
     });
     return !!mov;
-  }, [isFilial, stockByCenter, movements, insertMovement]);
+  }, [isFilial, stockByCenter, movements, insertMovement, fetchServerStock]);
 
   const clearAllMovements = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
     if (!isMaster) return { ok: false, error: 'Apenas usuário Master pode limpar o histórico.' };
