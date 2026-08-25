@@ -181,11 +181,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           unitCost: (r as any).unit_cost != null ? Number((r as any).unit_cost) : undefined,
           invoiceNumber: (r as any).invoice_number || undefined,
         }));
+        // Deduplicação apenas por ID real (nunca por conteúdo: dois lançamentos
+        // idênticos no mesmo dia são legítimos e precisam contar no saldo).
         const seen = new Set<string>();
         const deduped = mapped.filter(m => {
-          const key = movementKey(m);
-          if (seen.has(key)) return false;
-          seen.add(key);
+          if (seen.has(m.id)) return false;
+          seen.add(m.id);
           return true;
         });
         if (deduped.length !== mapped.length) {
@@ -194,6 +195,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
         }
         setMovements(deduped);
+
       }
       if (minRes.data) {
         const map: MinStockMap = {};
@@ -374,6 +376,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const isFilial = useCallback((id: string) => filiais.some(f => f.id === id), [filiais]);
 
+  // Saldo REAL lido do banco no momento do lançamento (evita estoque negativo
+  // por estado local desatualizado / lançamentos feitos por outros usuários).
+  const fetchServerStock = useCallback(async (productId: string, costCenterId: string): Promise<number | null> => {
+    const { data, error } = await supabase
+      .from('stock_movements')
+      .select('type, quantity, cost_center_id, destination_center_id')
+      .eq('product_id', productId)
+      .or(`cost_center_id.eq.${costCenterId},destination_center_id.eq.${costCenterId}`);
+    if (error) { console.error('fetchServerStock', error); return null; }
+    let balance = 0;
+    for (const r of (data || []) as any[]) {
+      if (r.type === 'entrada' && r.cost_center_id === costCenterId) balance += r.quantity;
+      else if (r.type === 'saida' && r.cost_center_id === costCenterId) balance -= r.quantity;
+      else if (r.type === 'transferencia') {
+        if (r.cost_center_id === costCenterId) balance -= r.quantity;
+        if (r.destination_center_id === costCenterId) balance += r.quantity;
+      }
+    }
+    return balance;
+  }, []);
+
+
   // ===== Movements =====
   const insertMovement = useCallback(async (m: Omit<StockMovement, 'id'>): Promise<StockMovement | null> => {
     try {
@@ -395,9 +419,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .single();
       if (error) {
         console.error('insertMovement error', error, payload);
-        setLastMovementError(error.message || 'Falha ao inserir movimentação.');
+        const raw = error.message || 'Falha ao inserir movimentação.';
+        const neg = raw.match(/ESTOQUE_NEGATIVO: disponivel (-?\d+), solicitado (\d+)/);
+        setLastMovementError(
+          neg
+            ? `Estoque insuficiente na filial. Disponível: ${neg[1]} — Solicitado: ${neg[2]}. A operação geraria estoque negativo.`
+            : raw
+        );
         return null;
       }
+
       if (!data) {
         setLastMovementError('Resposta vazia do servidor ao registrar movimentação.');
         return null;
@@ -440,11 +471,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLastMovementError('Selecione uma filial válida para registrar a saída.');
       return false;
     }
-    const current = (stockByCenter[productId]?.[costCenterId]) || 0;
+    const serverStock = await fetchServerStock(productId, costCenterId);
+    const current = serverStock ?? ((stockByCenter[productId]?.[costCenterId]) || 0);
     if (current < quantity) {
       setLastMovementError(`Estoque insuficiente na filial (disponível: ${current}).`);
       return false;
     }
+
     // Valoriza a saída com o último custo de entrada (prioriza a própria filial)
     const entradasOut = movements
       .filter(m => m.productId === productId && m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
@@ -457,18 +490,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clientRequestId,
     });
     return !!mov;
-  }, [isFilial, stockByCenter, movements, insertMovement]);
+  }, [isFilial, stockByCenter, movements, insertMovement, fetchServerStock]);
 
   const transferStock = useCallback(async (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string, clientRequestId?: string): Promise<boolean> => {
     if (!isFilial(fromId) || !isFilial(toId) || fromId === toId) {
       setLastMovementError('Origem e destino devem ser filiais distintas e válidas.');
       return false;
     }
-    const current = (stockByCenter[productId]?.[fromId]) || 0;
+    const serverFrom = await fetchServerStock(productId, fromId);
+    const current = serverFrom ?? ((stockByCenter[productId]?.[fromId]) || 0);
     if (current < quantity) {
       setLastMovementError(`Estoque insuficiente na origem (disponível: ${current}).`);
       return false;
     }
+
     // Pega o último custo unitário conhecido do produto (prefere a filial de origem, fallback global)
     const entradas = movements
       .filter(m => m.productId === productId && m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
@@ -485,7 +520,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clientRequestId,
     });
     return !!mov;
-  }, [isFilial, stockByCenter, movements, insertMovement]);
+  }, [isFilial, stockByCenter, movements, insertMovement, fetchServerStock]);
 
   const clearAllMovements = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
     if (!isMaster) return { ok: false, error: 'Apenas usuário Master pode limpar o histórico.' };
