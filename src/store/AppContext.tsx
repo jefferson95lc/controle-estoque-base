@@ -181,11 +181,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           unitCost: (r as any).unit_cost != null ? Number((r as any).unit_cost) : undefined,
           invoiceNumber: (r as any).invoice_number || undefined,
         }));
+        // Deduplicação apenas por ID real (nunca por conteúdo: dois lançamentos
+        // idênticos no mesmo dia são legítimos e precisam contar no saldo).
         const seen = new Set<string>();
         const deduped = mapped.filter(m => {
-          const key = movementKey(m);
-          if (seen.has(key)) return false;
-          seen.add(key);
+          if (seen.has(m.id)) return false;
+          seen.add(m.id);
           return true;
         });
         if (deduped.length !== mapped.length) {
@@ -194,6 +195,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
         }
         setMovements(deduped);
+
       }
       if (minRes.data) {
         const map: MinStockMap = {};
