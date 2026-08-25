@@ -483,18 +483,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clientRequestId,
     });
     return !!mov;
-  }, [isFilial, stockByCenter, movements, insertMovement]);
+  }, [isFilial, stockByCenter, movements, insertMovement, fetchServerStock]);
 
   const transferStock = useCallback(async (productId: string, quantity: number, fromId: string, toId: string, reason: string, date?: string, clientRequestId?: string): Promise<boolean> => {
     if (!isFilial(fromId) || !isFilial(toId) || fromId === toId) {
       setLastMovementError('Origem e destino devem ser filiais distintas e válidas.');
       return false;
     }
-    const current = (stockByCenter[productId]?.[fromId]) || 0;
+    const serverFrom = await fetchServerStock(productId, fromId);
+    const current = serverFrom ?? ((stockByCenter[productId]?.[fromId]) || 0);
     if (current < quantity) {
       setLastMovementError(`Estoque insuficiente na origem (disponível: ${current}).`);
       return false;
     }
+
     // Pega o último custo unitário conhecido do produto (prefere a filial de origem, fallback global)
     const entradas = movements
       .filter(m => m.productId === productId && m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
