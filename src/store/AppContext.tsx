@@ -464,11 +464,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLastMovementError('Selecione uma filial válida para registrar a saída.');
       return false;
     }
-    const current = (stockByCenter[productId]?.[costCenterId]) || 0;
+    const serverStock = await fetchServerStock(productId, costCenterId);
+    const current = serverStock ?? ((stockByCenter[productId]?.[costCenterId]) || 0);
     if (current < quantity) {
       setLastMovementError(`Estoque insuficiente na filial (disponível: ${current}).`);
       return false;
     }
+
     // Valoriza a saída com o último custo de entrada (prioriza a própria filial)
     const entradasOut = movements
       .filter(m => m.productId === productId && m.type === 'entrada' && m.unitCost != null && m.unitCost > 0)
