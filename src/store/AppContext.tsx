@@ -419,9 +419,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .single();
       if (error) {
         console.error('insertMovement error', error, payload);
-        setLastMovementError(error.message || 'Falha ao inserir movimentação.');
+        const raw = error.message || 'Falha ao inserir movimentação.';
+        const neg = raw.match(/ESTOQUE_NEGATIVO: disponivel (-?\d+), solicitado (\d+)/);
+        setLastMovementError(
+          neg
+            ? `Estoque insuficiente na filial. Disponível: ${neg[1]} — Solicitado: ${neg[2]}. A operação geraria estoque negativo.`
+            : raw
+        );
         return null;
       }
+
       if (!data) {
         setLastMovementError('Resposta vazia do servidor ao registrar movimentação.');
         return null;
