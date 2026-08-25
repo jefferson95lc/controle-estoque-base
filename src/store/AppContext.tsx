@@ -376,6 +376,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const isFilial = useCallback((id: string) => filiais.some(f => f.id === id), [filiais]);
 
+  // Saldo REAL lido do banco no momento do lançamento (evita estoque negativo
+  // por estado local desatualizado / lançamentos feitos por outros usuários).
+  const fetchServerStock = useCallback(async (productId: string, costCenterId: string): Promise<number | null> => {
+    const { data, error } = await supabase
+      .from('stock_movements')
+      .select('type, quantity, cost_center_id, destination_center_id')
+      .eq('product_id', productId)
+      .or(`cost_center_id.eq.${costCenterId},destination_center_id.eq.${costCenterId}`);
+    if (error) { console.error('fetchServerStock', error); return null; }
+    let balance = 0;
+    for (const r of (data || []) as any[]) {
+      if (r.type === 'entrada' && r.cost_center_id === costCenterId) balance += r.quantity;
+      else if (r.type === 'saida' && r.cost_center_id === costCenterId) balance -= r.quantity;
+      else if (r.type === 'transferencia') {
+        if (r.cost_center_id === costCenterId) balance -= r.quantity;
+        if (r.destination_center_id === costCenterId) balance += r.quantity;
+      }
+    }
+    return balance;
+  }, []);
+
+
   // ===== Movements =====
   const insertMovement = useCallback(async (m: Omit<StockMovement, 'id'>): Promise<StockMovement | null> => {
     try {
