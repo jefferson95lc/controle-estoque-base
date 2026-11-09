@@ -26,6 +26,23 @@ export default function DashboardPage() {
   const totalEntradas = scopedMovements.filter(m => m.type === 'entrada').length;
   const totalSaidas = scopedMovements.filter(m => m.type === 'saida').length;
 
+  const sevenDaysStart = new Date();
+  sevenDaysStart.setHours(0, 0, 0, 0);
+  sevenDaysStart.setDate(sevenDaysStart.getDate() - 6);
+  const usedMaterials7Days = Object.entries(
+    scopedMovements.reduce<Record<string, number>>((acc, m) => {
+      if (m.type !== 'saida' || new Date(m.date) < sevenDaysStart) return acc;
+      acc[m.productId] = (acc[m.productId] || 0) + m.quantity;
+      return acc;
+    }, {})
+  )
+    .map(([productId, quantity]) => ({
+      productId,
+      quantity,
+      product: products.find(p => p.id === productId),
+    }))
+    .sort((a, b) => b.quantity - a.quantity || (a.product?.name || '').localeCompare(b.product?.name || ''));
+
   // Último custo por produto: prioriza entrada na filial ativa; fallback para global
   const lastCostByProduct = useMemo(() => {
     // Date desc + insertion-order tiebreaker (newer insert wins on same date)
@@ -154,6 +171,39 @@ export default function DashboardPage() {
                   </Badge>
                 </div>
               ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-heading text-lg">Materiais Utilizados nos Últimos 7 Dias</CardTitle>
+          <p className="text-xs text-muted-foreground">Somente saídas · {scopeLabel}</p>
+        </CardHeader>
+        <CardContent>
+          {usedMaterials7Days.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum material utilizado nos últimos 7 dias.</p>
+          ) : (
+            <div className="max-h-96 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left p-3 font-medium">Material</th>
+                    <th className="text-right p-3 font-medium">Quantidade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usedMaterials7Days.map(item => (
+                    <tr key={item.productId} className="border-b last:border-0">
+                      <td className="p-3 font-medium">{item.product?.name || '—'}</td>
+                      <td className="p-3 text-right font-semibold">
+                        {item.quantity} {item.product?.unit || ''}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>

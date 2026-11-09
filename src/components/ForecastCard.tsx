@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { TrendingUp, Download } from 'lucide-react';
 
 const HORIZON_DAYS = 30;
+const WEEK_HORIZON_DAYS = 7;
 const HISTORY_DAYS = 90;
 
 export default function ForecastCard() {
@@ -36,11 +37,12 @@ export default function ForecastCard() {
       .map(p => {
         const consumo90 = consumoPorProduto.get(p.id) || 0;
         const mediaDiaria = consumo90 / HISTORY_DAYS;
+        const previsaoSemana = Math.ceil(mediaDiaria * WEEK_HORIZON_DAYS);
         const previsao = Math.ceil(mediaDiaria * HORIZON_DAYS);
         const estoqueAtual = getStock(p.id, activeCenterId);
         const sugestaoCompra = Math.max(0, previsao - estoqueAtual);
         const diasCobertura = mediaDiaria > 0 ? Math.floor(estoqueAtual / mediaDiaria) : Infinity;
-        return { p, consumo90, previsao, estoqueAtual, sugestaoCompra, diasCobertura, mediaDiaria };
+        return { p, consumo90, previsaoSemana, previsao, estoqueAtual, sugestaoCompra, diasCobertura, mediaDiaria };
       })
       .filter(r => r.consumo90 > 0)
       .sort((a, b) => b.sugestaoCompra - a.sugestaoCompra);
@@ -53,6 +55,7 @@ export default function ForecastCard() {
       'Unidade': r.p.unit,
       'Consumo 90d': r.consumo90,
       'Média/dia': Number(r.mediaDiaria.toFixed(4)),
+      'Previsão semana': r.previsaoSemana,
       [`Previsão ${HORIZON_DAYS}d`]: r.previsao,
       'Estoque atual': r.estoqueAtual,
       'Cobertura (dias)': r.diasCobertura === Infinity ? '∞' : r.diasCobertura,
@@ -96,6 +99,7 @@ export default function ForecastCard() {
                   <TableHead>Produto</TableHead>
                   <TableHead className="text-right">Consumo 90d</TableHead>
                   <TableHead className="text-right">Média/dia</TableHead>
+                  <TableHead className="text-right">Previsão semana</TableHead>
                   <TableHead className="text-right">Previsão {HORIZON_DAYS}d</TableHead>
                   <TableHead className="text-right">Estoque atual</TableHead>
                   <TableHead className="text-right">Cobertura</TableHead>
@@ -111,6 +115,7 @@ export default function ForecastCard() {
                       <TableCell className="font-medium">{r.p.name}</TableCell>
                       <TableCell className="text-right">{r.consumo90} {r.p.unit}</TableCell>
                       <TableCell className="text-right text-muted-foreground">{r.mediaDiaria.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-semibold">{r.previsaoSemana} {r.p.unit}</TableCell>
                       <TableCell className="text-right font-semibold">{r.previsao} {r.p.unit}</TableCell>
                       <TableCell className="text-right">{r.estoqueAtual}</TableCell>
                       <TableCell className="text-right">
