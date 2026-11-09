@@ -22,6 +22,7 @@ export default function ReportsPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [centerFilter, setCenterFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [userMap, setUserMap] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -46,9 +47,10 @@ export default function ReportsPage() {
       if (centerFilter !== 'all' && centerFilter !== 'consolidado') {
         if (m.costCenterId !== centerFilter && m.destinationCenterId !== centerFilter) return false;
       }
+      if (typeFilter !== 'all' && m.type !== typeFilter) return false;
       return true;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [movements, startDate, endDate, centerFilter]);
+  }, [movements, startDate, endDate, centerFilter, typeFilter]);
 
   const getProductName = (id: string) => products.find(p => p.id === id)?.name || '—';
   const getCenterName = (id?: string) => id ? (costCenters.find(c => c.id === id)?.name || '—') : '—';
@@ -104,6 +106,18 @@ export default function ReportsPage() {
               {costCenters.filter(c => c.type === 'filial').map(c => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-[190px]">
+          <Label>Tipo de movimentação</Label>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os tipos</SelectItem>
+              <SelectItem value="entrada">Entradas</SelectItem>
+              <SelectItem value="saida">Saídas</SelectItem>
+              <SelectItem value="transferencia">Transferências</SelectItem>
             </SelectContent>
           </Select>
         </div>
