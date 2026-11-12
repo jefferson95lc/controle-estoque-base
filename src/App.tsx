@@ -14,6 +14,7 @@ import CategoriesPage from "@/pages/CategoriesPage";
 
 import StockPage from "@/pages/StockPage";
 import ReportsPage from "@/pages/ReportsPage";
+import OrderPage from "@/pages/OrderPage";
 import UsersPage from "@/pages/UsersPage";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -36,6 +37,7 @@ const App = () => (
                 
                 <Route path="/estoque" element={<StockPage />} />
                 <Route path="/relatorios" element={<ReportsPage />} />
+                <Route path="/pedido" element={<OrderPage />} />
                 <Route path="/usuarios" element={<ProtectedRoute requireMaster><UsersPage /></ProtectedRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
