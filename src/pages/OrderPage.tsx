@@ -16,7 +16,7 @@ import { selectedPeriodWeeks, suggestedOrderQty, weeklyAverage } from '@/lib/ord
 import { createOrderPdf, createOrderWorkbook, FinalOrder } from '@/lib/orderExport';
 
 function OrderDate({ label, date, onChange }: { label: string; date: Date | undefined; onChange: (date: Date | undefined) => void }) {
-  return <div className="space-y-1"><Label>{label}</Label><Popover><PopoverTrigger asChild>
+  return <div className="flex flex-col gap-1"><Label>{label}</Label><Popover><PopoverTrigger asChild>
     <Button variant="outline" className="w-44 justify-start font-normal"><CalendarIcon size={16} />{date ? format(date, 'dd/MM/yyyy') : 'Selecionar data'}</Button>
   </PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={date} onSelect={onChange} locale={ptBR} initialFocus className="pointer-events-auto p-3" /></PopoverContent></Popover></div>;
 }
@@ -73,7 +73,7 @@ export default function OrderPage() {
 
   return <div className="space-y-6">
     <div><h1 className="font-heading text-2xl font-bold">Pedido</h1><p className="text-sm text-muted-foreground flex items-center gap-2 mt-1"><Building2 size={14} />{scope}</p></div>
-    <div className="flex flex-wrap gap-4 items-end">
+    <div className="flex flex-wrap gap-4 items-start">
       <div className="space-y-2">
         <div className="flex flex-wrap gap-4">
           <OrderDate label="Data inicial" date={start} onChange={v => { setStart(v); clearDraft(); }} />
@@ -81,7 +81,7 @@ export default function OrderPage() {
         </div>
         <p className="text-sm text-muted-foreground">{periodWeeks > 0 ? `${periodWeeks} ${periodWeeks === 1 ? 'semana selecionada' : 'semanas selecionadas'}` : 'Período inválido'}</p>
       </div>
-      <div className="space-y-1"><Label htmlFor="order-weeks">Quantidade de semanas</Label><Input id="order-weeks" type="number" min="1" step="1" className="w-44" value={weeks} onChange={e => { setWeeks(e.target.value); clearDraft(); }} /></div>
+      <div className="flex flex-col gap-1"><Label htmlFor="order-weeks">Quantidade de semanas</Label><Input id="order-weeks" type="number" min="1" step="1" className="w-44" value={weeks} onChange={e => { setWeeks(e.target.value); clearDraft(); }} /></div>
     </div>
     {!valid && <p role="alert" className="text-sm text-destructive">Informe um período válido e uma quantidade inteira de semanas maior que zero.</p>}
     <div className="flex flex-wrap items-end gap-3">
