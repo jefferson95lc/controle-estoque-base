@@ -5,9 +5,15 @@ export interface OrderCalcInput {
   stock: number;       // estoque atual disponível
 }
 
+/** Conta semanas de sete dias; uma semana parcial conta como uma semana selecionada. */
+export function selectedPeriodWeeks(periodDays: number): number {
+  return periodDays > 0 ? Math.ceil(periodDays / 7) : 0;
+}
+
 export function weeklyAverage(consumption: number, periodDays: number): number {
-  if (periodDays <= 0) return 0;
-  return consumption / (periodDays / 7);
+  const periodWeeks = selectedPeriodWeeks(periodDays);
+  if (periodWeeks === 0) return 0;
+  return consumption / periodWeeks;
 }
 
 /** Necessidade de compra = (média semanal × semanas) − estoque, nunca negativa. */

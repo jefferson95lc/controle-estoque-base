@@ -12,7 +12,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ProductCombobox } from '@/components/ProductCombobox';
-import { suggestedOrderQty, weeklyAverage } from '@/lib/orderCalc';
+import { selectedPeriodWeeks, suggestedOrderQty, weeklyAverage } from '@/lib/orderCalc';
 import { createOrderPdf, createOrderWorkbook, FinalOrder } from '@/lib/orderExport';
 
 function OrderDate({ label, date, onChange }: { label: string; date: Date | undefined; onChange: (date: Date | undefined) => void }) {
@@ -35,6 +35,7 @@ export default function OrderPage() {
   const consolidated = !activeCenterId || activeCenterId === matrizId;
   const scope = consolidated ? 'Matriz (Consolidado)' : costCenters.find(c => c.id === activeCenterId)?.name || 'Filial';
   const periodDays = start && end ? differenceInCalendarDays(end, start) + 1 : 0;
+  const periodWeeks = selectedPeriodWeeks(periodDays);
   const valid = Boolean(start && end && periodDays > 0 && Number.isInteger(Number(weeks)) && Number(weeks) > 0);
 
   const rows = useMemo(() => {
@@ -73,10 +74,14 @@ export default function OrderPage() {
   return <div className="space-y-6">
     <div><h1 className="font-heading text-2xl font-bold">Pedido</h1><p className="text-sm text-muted-foreground flex items-center gap-2 mt-1"><Building2 size={14} />{scope}</p></div>
     <div className="flex flex-wrap gap-4 items-end">
-      <OrderDate label="Data inicial" date={start} onChange={v => { setStart(v); clearDraft(); }} />
-      <OrderDate label="Data final" date={end} onChange={v => { setEnd(v); clearDraft(); }} />
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-4">
+          <OrderDate label="Data inicial" date={start} onChange={v => { setStart(v); clearDraft(); }} />
+          <OrderDate label="Data final" date={end} onChange={v => { setEnd(v); clearDraft(); }} />
+        </div>
+        <p className="text-sm text-muted-foreground">{periodWeeks > 0 ? `${periodWeeks} ${periodWeeks === 1 ? 'semana selecionada' : 'semanas selecionadas'}` : 'Período inválido'}</p>
+      </div>
       <div className="space-y-1"><Label htmlFor="order-weeks">Quantidade de semanas</Label><Input id="order-weeks" type="number" min="1" step="1" className="w-44" value={weeks} onChange={e => { setWeeks(e.target.value); clearDraft(); }} /></div>
-      <span className="text-sm text-muted-foreground pb-2">{periodDays > 0 ? `${periodDays} dias de referência` : 'Período inválido'}</span>
     </div>
     {!valid && <p role="alert" className="text-sm text-destructive">Informe um período válido e uma quantidade inteira de semanas maior que zero.</p>}
     <div className="flex flex-wrap items-end gap-3">

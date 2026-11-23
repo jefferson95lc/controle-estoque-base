@@ -34,7 +34,7 @@ describe('Pedido isolado dos lançamentos de estoque', () => {
     expect(row).not.toBeNull();
     if (!row) return;
     expect(within(row).getAllByRole('cell')[2]).toHaveTextContent('60');
-    expect(screen.getByLabelText('Quantidade de Luva PP')).toHaveValue(36);
+    expect(screen.getByLabelText('Quantidade de Luva PP')).toHaveValue(28);
   });
   it('pedido final inclui somente itens validados e usa a quantidade editada', () => {
     render(<OrderPage />);
@@ -57,6 +57,6 @@ describe('Pedido isolado dos lançamentos de estoque', () => {
     app.activeCenterId = 'f2';
     rerender(<OrderPage />);
     expect(screen.getByRole('checkbox', { name: 'Validar Luva PP' })).not.toBeChecked();
-    expect(screen.getByLabelText('Quantidade de Luva PP')).toHaveValue(835);
+    expect(screen.getByLabelText('Quantidade de Luva PP')).toHaveValue(715);
   });
 });
