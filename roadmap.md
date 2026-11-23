@@ -1,5 +1,6 @@
 # Pedido
-- [ ] Armazenar data de geração e conteúdo completo dos pedidos para consulta posterior — aguardando escolha entre histórico compartilhado na produção externa ou local no navegador.
+- [x] Incluir salvamento de pedidos completos, consulta por filial e reexportação XLS/PDF em histórico compartilhado.
+- [ ] Ativar histórico na produção externa e verificar com sessão real — depende da execução do SQL fornecido no banco externo.
 - [x] Ajustar média semanal por semanas inteiras do período (parcial conta como uma) e mostrar semanas abaixo das datas.
 - [x] Adicionar menu e tela isolada com período, semanas, consumo e estoque atual.
 - [x] Permitir edição, inclusão, remoção e validação individual dos itens.

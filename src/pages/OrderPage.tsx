@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { differenceInCalendarDays, endOfDay, format, isValid, parseISO, startOfDay, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
@@ -14,6 +14,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ProductCombobox } from '@/components/ProductCombobox';
 import { selectedPeriodWeeks, suggestedOrderQty, weeklyAverage } from '@/lib/orderCalc';
 import { createOrderPdf, createOrderWorkbook, FinalOrder } from '@/lib/orderExport';
+import { useAuth } from '@/hooks/useAuth';
+import { saveOrderHistory, type OrderHistoryInsert } from '@/lib/orderHistory';
+import { OrderHistory } from '@/components/OrderHistory';
 
 function OrderDate({ label, date, onChange }: { label: string; date: Date | undefined; onChange: (date: Date | undefined) => void }) {
   return <div className="flex flex-col gap-1"><Label>{label}</Label><Popover><PopoverTrigger asChild>
@@ -23,6 +26,12 @@ function OrderDate({ label, date, onChange }: { label: string; date: Date | unde
 
 export default function OrderPage() {
   const { products, movements, filiais, activeCenterId, matrizId, costCenters, getStock, loading } = useApp();
+  const { user } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [historyRevision, setHistoryRevision] = useState(0);
+  const savingRef = useRef(false);
+  const pendingSave = useRef<OrderHistoryInsert | null>(null);
   const [start, setStart] = useState<Date | undefined>(() => subDays(startOfDay(new Date()), 29));
   const [end, setEnd] = useState<Date | undefined>(() => startOfDay(new Date()));
   const [weeks, setWeeks] = useState('4');
@@ -34,6 +43,7 @@ export default function OrderPage() {
   const [finalOrder, setFinalOrder] = useState<FinalOrder | null>(null);
   const consolidated = !activeCenterId || activeCenterId === matrizId;
   const scope = consolidated ? 'Matriz (Consolidado)' : costCenters.find(c => c.id === activeCenterId)?.name || 'Filial';
+  const historyCenters = consolidated ? filiais.map(f => f.id) : activeCenterId ? [activeCenterId] : [];
   const periodDays = start && end ? differenceInCalendarDays(end, start) + 1 : 0;
   const periodWeeks = selectedPeriodWeeks(periodDays);
   const valid = Boolean(start && end && periodDays > 0 && Number.isInteger(Number(weeks)) && Number(weeks) > 0);
@@ -59,15 +69,35 @@ export default function OrderPage() {
 
   const selectedRows = rows.filter(r => selected.has(r.p.id));
   const canGenerate = valid && selectedRows.length > 0 && selectedRows.every(r => Number.isInteger(r.quantity) && r.quantity > 0);
-  const clearDraft = () => { setEdits({}); setSelected(new Set()); setAdded(new Set()); setRemoved(new Set()); setFinalOrder(null); };
+  const clearDraft = () => { setEdits({}); setSelected(new Set()); setAdded(new Set()); setRemoved(new Set()); setFinalOrder(null); setSaveError(''); pendingSave.current = null; };
   // Isolate drafts by branch: no quantities or validation may carry into another branch.
   const [draftCenter, setDraftCenter] = useState(activeCenterId);
   if (draftCenter !== activeCenterId) { setDraftCenter(activeCenterId); clearDraft(); }
-  const invalidate = () => setFinalOrder(null);
+  const invalidate = () => { setFinalOrder(null); setSaveError(''); pendingSave.current = null; };
+  const persist = async (record: OrderHistoryInsert) => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await saveOrderHistory(record);
+      setHistoryRevision(v => v + 1);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Não foi possível salvar o pedido no histórico.');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  };
   const generate = () => {
-    if (!canGenerate || !start || !end) return;
-    setFinalOrder({ scope, start: format(start, 'dd/MM/yyyy'), end: format(end, 'dd/MM/yyyy'), weeks: Number(weeks),
-      items: selectedRows.map(r => ({ productId: r.p.id, name: r.p.name, sku: r.p.sku, unit: r.p.unit, quantity: r.quantity })) });
+    if (!canGenerate || !start || !end || savingRef.current) return;
+    const order: FinalOrder = { scope, start: format(start, 'dd/MM/yyyy'), end: format(end, 'dd/MM/yyyy'), weeks: Number(weeks),
+      items: selectedRows.map(r => ({ productId: r.p.id, name: r.p.name, sku: r.p.sku, unit: r.p.unit, quantity: r.quantity })) };
+    setFinalOrder(order);
+    if (!user) { setSaveError('Entre novamente no sistema para salvar o histórico.'); return; }
+    const record: OrderHistoryInsert = { id: crypto.randomUUID(), created_by: user.id, center_ids: historyCenters, order };
+    pendingSave.current = record;
+    void persist(record);
   };
   const filename = `pedido-${format(new Date(), 'yyyyMMdd')}`;
 
@@ -99,12 +129,15 @@ export default function OrderPage() {
         <TableCell><Button variant="ghost" size="icon" title="Remover produto" aria-label={`Remover ${r.p.name}`} onClick={() => { setRemoved(prev => new Set(prev).add(r.p.id)); invalidate(); }}><Trash2 size={16} /></Button></TableCell>
       </TableRow>)}{rows.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground h-24">{loading ? 'Carregando...' : 'Nenhum material encontrado.'}</TableCell></TableRow>}</TableBody></Table>
     </div>
-    <div className="flex items-center gap-4 flex-wrap"><Button disabled={!canGenerate || loading} onClick={generate}><Check size={16} /> Gerar pedido final</Button><span className="text-sm text-muted-foreground">{selectedRows.length} item(ns) validado(s)</span></div>
+    <div className="flex items-center gap-4 flex-wrap"><Button disabled={!canGenerate || loading || saving} onClick={generate}><Check size={16} /> Gerar pedido final</Button><span className="text-sm text-muted-foreground">{selectedRows.length} item(ns) validado(s)</span></div>
+    {saving && <p role="status" className="text-sm text-muted-foreground">Salvando pedido no histórico...</p>}
+    {saveError && <div className="space-y-2"><p role="alert" className="text-sm text-destructive">{saveError} O pedido não foi confirmado no histórico.</p>{pendingSave.current && <Button variant="outline" disabled={saving} onClick={() => { if (pendingSave.current) void persist(pendingSave.current); }}>Tentar salvar novamente</Button>}</div>}
     {selectedRows.some(r => !Number.isInteger(r.quantity) || r.quantity <= 0) && <p className="text-sm text-destructive" role="alert">Os itens validados precisam de uma quantidade inteira maior que zero.</p>}
     {finalOrder && <section className="space-y-4 border-t pt-6">
       <div className="flex justify-between items-center gap-4 flex-wrap"><h2 className="font-heading text-xl font-bold">Pedido final</h2><div className="flex gap-2"><Button variant="outline" onClick={() => XLSX.writeFile(createOrderWorkbook(finalOrder), `${filename}.xls`, { bookType: 'biff8' })}><Download size={16} /> Exportar XLS</Button><Button variant="outline" onClick={() => createOrderPdf(finalOrder).save(`${filename}.pdf`)}><Download size={16} /> Exportar PDF</Button></div></div>
       <p className="text-sm text-muted-foreground">{finalOrder.scope} · {finalOrder.start} a {finalOrder.end} · {finalOrder.weeks} semana(s)</p>
       <Table><TableHeader><TableRow><TableHead>Material</TableHead><TableHead>Unidade</TableHead><TableHead className="text-right">Quantidade</TableHead></TableRow></TableHeader><TableBody>{finalOrder.items.map(i => <TableRow key={i.productId}><TableCell>{i.name}</TableCell><TableCell>{i.unit}</TableCell><TableCell className="text-right font-semibold">{i.quantity}</TableCell></TableRow>)}</TableBody></Table>
     </section>}
+    <OrderHistory key={`${JSON.stringify(historyCenters)}-${historyRevision}`} centerIds={historyCenters} consolidated={consolidated} revision={historyRevision} />
   </div>;
 }
