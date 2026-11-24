@@ -39,3 +39,10 @@ export async function listOrderHistory(centerIds: string[], consolidated: boolea
   if (error) throw historyError(error);
   return data;
 }
+
+/** Authorization is enforced by the database's Master-only DELETE policy. */
+export async function deleteOrderHistory(id: string): Promise<void> {
+  const { data, error } = await client.from('order_history').delete().eq('id', id).select('id').maybeSingle();
+  if (error) throw historyError(error);
+  if (!data) throw new Error('Pedido não excluído. Apenas Master pode excluir; confirme também se a permissão de exclusão foi ativada no banco de produção.');
+}

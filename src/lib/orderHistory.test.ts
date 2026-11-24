@@ -1,18 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { listOrderHistory, saveOrderHistory, type OrderHistoryInsert } from './orderHistory';
+import { deleteOrderHistory, listOrderHistory, saveOrderHistory, type OrderHistoryInsert } from './orderHistory';
 
-const db = vi.hoisted(() => ({ from: vi.fn(), insert: vi.fn(), select: vi.fn(), single: vi.fn(), eq: vi.fn(), order: vi.fn(), containedBy: vi.fn(), contains: vi.fn(), range: vi.fn() }));
+const db = vi.hoisted(() => ({ from: vi.fn(), insert: vi.fn(), delete: vi.fn(), maybeSingle: vi.fn(), select: vi.fn(), single: vi.fn(), eq: vi.fn(), order: vi.fn(), containedBy: vi.fn(), contains: vi.fn(), range: vi.fn() }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: db.from } }));
 const record: OrderHistoryInsert = { id: 'o1', created_by: 'u1', center_ids: ['f1'], order: { scope: 'Bezerra', start: '16/11/2026', end: '20/11/2026', weeks: 4, items: [{ productId: 'p1', name: 'PELÍCULA DE RX (UN)', sku: 'SKU213', unit: 'UN', quantity: 420 }] } };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  for (const name of ['from', 'insert', 'select', 'eq', 'order', 'containedBy', 'contains'] as const) db[name].mockReturnValue(db);
+  for (const name of ['from', 'insert', 'delete', 'select', 'eq', 'order', 'containedBy', 'contains'] as const) db[name].mockReturnValue(db);
   db.single.mockResolvedValue({ data: { ...record, created_at: '2026-11-23T14:31:00Z' }, error: null });
   db.range.mockResolvedValue({ data: [], error: null });
 });
 
 describe('persistência isolada do histórico de pedidos', () => {
+  it('exclui somente o pedido indicado sem escrever no estoque', async () => {
+    db.maybeSingle.mockResolvedValue({ data: { id: 'o1' }, error: null });
+    await deleteOrderHistory('o1');
+    expect(db.eq).toHaveBeenCalledWith('id', 'o1');
+    expect(db.from.mock.calls).toEqual([['order_history']]);
+  });
+  it('não informa exclusão quando a política bloqueia o usuário', async () => {
+    db.maybeSingle.mockResolvedValue({ data: null, error: null });
+    await expect(deleteOrderHistory('o1')).rejects.toThrow('Apenas Master');
+  });
   it('salva o conteúdo e retorna a data registrada pelo banco sem escrever no estoque', async () => {
     const saved = await saveOrderHistory(record);
     expect(saved.created_at).toBe('2026-11-23T14:31:00Z');
